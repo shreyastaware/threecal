@@ -7,6 +7,7 @@ from app.core.security import create_access_token
 from app.domains.auth.schemas import AuthResponse, LoginRequest, RegisterRequest
 from app.domains.auth.service import AuthService
 from app.domains.users.models import User
+from app.domains.users.schemas import UserRead
 
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -33,7 +34,7 @@ def register(
 ) -> AuthResponse:
     user = AuthService(db).register(data)
     set_auth_cookie(response, user)
-    return AuthResponse(user=user)
+    return AuthResponse(user=UserRead.model_validate(user))
 
 
 @router.post("/login", response_model=AuthResponse)
@@ -44,7 +45,7 @@ def login(
 ) -> AuthResponse:
     user = AuthService(db).authenticate(data)
     set_auth_cookie(response, user)
-    return AuthResponse(user=user)
+    return AuthResponse(user=UserRead.model_validate(user))
 
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
