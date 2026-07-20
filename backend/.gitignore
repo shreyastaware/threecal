@@ -1,0 +1,135 @@
+# ==========================
+# Python
+# ==========================
+.env*
+*env
+!.env.example
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+.python-version
+
+# ==========================
+# Environment Variables
+# ==========================
+.env
+.env.*
+!.env.example
+
+# ==========================
+# Flask
+# ==========================
+instance/
+.webassets-cache/
+.flaskenv
+
+# ==========================
+# Logs
+# ==========================
+logs/
+*.log
+*.out
+
+# ==========================
+# Testing
+# ==========================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.cache/
+.tox/
+.nox/
+
+# ==========================
+# Type Checking
+# ==========================
+.mypy_cache/
+.pyre/
+.pytype/
+
+# ==========================
+# Linting
+# ==========================
+.ruff_cache/
+
+# ==========================
+# Jupyter
+# ==========================
+.ipynb_checkpoints/
+
+# ==========================
+# Build / Distribution
+# ==========================
+build/
+dist/
+*.egg-info/
+.eggs/
+pip-wheel-metadata/
+
+# ==========================
+# IDEs
+# ==========================
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+
+# ==========================
+# Database
+# ==========================
+*.sqlite
+*.sqlite3
+
+# ==========================
+# Uploads / Media
+# ==========================
+uploads/
+media/
+
+# ==========================
+# Temporary Files
+# ==========================
+tmp/
+temp/
+*.tmp
+
+# ==========================
+# Docker
+# ==========================
+docker-compose.override.yml
+
+# ==========================
+# Secrets / Credentials
+# ==========================
+*.pem
+*.key
+*.crt
+secrets/
+credentials.json
+service-account.json
+
+# ==========================
+# Coverage Reports
+# ==========================
+coverage.xml
+
+# ==========================
+# Misc
+# ==========================
+*.bak
+*.orig
