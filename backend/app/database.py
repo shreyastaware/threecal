@@ -1,16 +1,8 @@
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+"""Compatibility exports for the original scaffold.
 
-DATABASE_URL = "sqlite:///./users.db"
+New code should import database primitives from ``app.core.database``.
+"""
 
-engine = create_engine(DATABASE_URL)
+from app.core.database import Base, SessionLocal, engine, get_db
 
-SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-def get_db():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
+__all__ = ["Base", "SessionLocal", "engine", "get_db"]

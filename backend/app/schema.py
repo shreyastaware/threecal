@@ -1,11 +1,9 @@
-from pydantic import BaseModel
+"""Compatibility exports for the original scaffold.
 
+Schemas now live with their owning business domains.
+"""
 
-class UserCreate(BaseModel):
-    name: str
-    email: str
-    password: str
+from app.domains.auth.schemas import RegisterRequest as UserCreate
+from app.domains.users.schemas import UserRead
 
-class UserUpdate(BaseModel):
-    name: str
-    email: str
+__all__ = ["UserCreate", "UserRead"]
