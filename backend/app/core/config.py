@@ -28,6 +28,15 @@ class Settings(BaseSettings):
 
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
 
+    email_provider: Literal["console", "smtp"] = "console"
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_username: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = "bookings@threecal.com"
+    smtp_use_tls: bool = True
+    webhook_secret: str = "development-webhook-secret"
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, value: object) -> object:

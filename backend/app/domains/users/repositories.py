@@ -17,9 +17,23 @@ class UserRepository:
     def get_by_email(self, email: str) -> User | None:
         return self.db.scalar(select(User).where(User.email == email))
 
+    def get_by_username(self, username: str) -> User | None:
+        return self.db.scalar(select(User).where(User.username == username.lower()))
+
     def create(self, *, email: str, full_name: str, password_hash: str) -> User:
         user = User(email=email, full_name=full_name, password_hash=password_hash)
         self.db.add(user)
+        try:
+            self.db.commit()
+        except IntegrityError:
+            self.db.rollback()
+            raise
+        self.db.refresh(user)
+        return user
+
+    def update(self, user: User, values: dict[str, object]) -> User:
+        for key, value in values.items():
+            setattr(user, key, value)
         try:
             self.db.commit()
         except IntegrityError:
