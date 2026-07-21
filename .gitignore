@@ -3,3 +3,5 @@ __pycache__/
 .pytest_cache/
 *.py[cod]
 backend/*.db
+test_credentials.txt
+instructions/

@@ -6,9 +6,11 @@ from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
 from app.domains.availability.service import AvailabilityService
+from app.domains.billing.repository import BillingRepository
 from app.domains.bookings.models import Booking, BookingStatus
 from app.domains.bookings.schemas import BookingCreate
 from app.domains.event_types.models import EventType
+from app.domains.payments.repository import PaymentConfigRepository
 from app.domains.users.models import User
 
 
@@ -17,6 +19,11 @@ class BookingService:
         self.db = db
 
     def create(self, host: User, event_type: EventType, payload: BookingCreate) -> Booking:
+        if event_type.price_minor:
+            billing = BillingRepository(self.db).get_for_doctor(host.id)
+            provider = PaymentConfigRepository(self.db).get_for_doctor(host.id)
+            if not billing or not billing.ready or not provider:
+                raise AppError(409, "doctor_payments_not_ready", "This doctor is not ready to accept paid bookings.")
         try:
             ZoneInfo(payload.invitee_timezone)
         except ZoneInfoNotFoundError as exc:
@@ -31,6 +38,7 @@ class BookingService:
             ends_at=payload.starts_at + timedelta(minutes=event_type.duration_minutes),
             payment_expires_at=datetime.now(timezone.utc) + timedelta(minutes=10),
             status=BookingStatus.PENDING if event_type.price_minor else BookingStatus.CONFIRMED,
+            booking_amount=event_type.price_minor,
             **payload.model_dump(),
         )
         self.db.add(booking)

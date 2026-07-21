@@ -6,6 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
+from app.core.config import settings
 from app.core.database import Base, get_db
 from app.main import app
 
@@ -25,8 +26,13 @@ def client(tmp_path: Path) -> Generator[TestClient, None, None]:
             yield db
 
     app.dependency_overrides[get_db] = override_get_db
-    with TestClient(app) as test_client:
-        yield test_client
-    app.dependency_overrides.clear()
-    Base.metadata.drop_all(bind=engine)
-    engine.dispose()
+    auto_create_tables = settings.auto_create_tables
+    settings.auto_create_tables = False
+    try:
+        with TestClient(app) as test_client:
+            yield test_client
+    finally:
+        settings.auto_create_tables = auto_create_tables
+        app.dependency_overrides.clear()
+        Base.metadata.drop_all(bind=engine)
+        engine.dispose()

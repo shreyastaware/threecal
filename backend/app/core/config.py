@@ -37,6 +37,21 @@ class Settings(BaseSettings):
     smtp_use_tls: bool = True
     webhook_secret: str = "development-webhook-secret"
 
+    credentials_encryption_key: str = "development-only-payment-credentials-key"
+    public_api_url: str = "http://localhost:8000"
+    frontend_url: str = "http://localhost:3000"
+
+    stripe_client_id: str = ""
+    stripe_client_secret: str = ""
+    paypal_client_id: str = ""
+    paypal_client_secret: str = ""
+    paypal_api_url: str = "https://api-m.sandbox.paypal.com"
+
+    dodo_payments_api_key: str = ""
+    dodo_payments_api_url: str = "https://test.dodopayments.com"
+    dodo_payments_product_id: str = ""
+    billing_cron_secret: str = "development-billing-cron-secret"
+
     @field_validator("cors_origins", mode="before")
     @classmethod
     def parse_cors_origins(cls, value: object) -> object:

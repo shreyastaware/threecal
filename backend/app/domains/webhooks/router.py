@@ -1,38 +1,31 @@
-import hashlib
-import hmac
 import json
+import uuid
 
-from fastapi import APIRouter, Depends, Header, Request, status
-from sqlalchemy.exc import IntegrityError
+from fastapi import APIRouter, Depends, Request, status
 from sqlalchemy.orm import Session
 
-from app.core.config import settings
 from app.core.database import get_db
 from app.core.errors import AppError
-from app.domains.webhooks.models import WebhookEvent
+from app.domains.payments.models import PaymentProvider
+from app.domains.webhooks.service import WebhookService
 
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
 
 
-@router.post("/{provider}", status_code=status.HTTP_202_ACCEPTED)
+@router.post("/{provider}/{doctor_id}", status_code=status.HTTP_202_ACCEPTED)
 async def receive_webhook(
-    provider: str,
+    provider: PaymentProvider,
+    doctor_id: uuid.UUID,
     request: Request,
-    x_webhook_id: str = Header(),
-    x_webhook_signature: str = Header(),
     db: Session = Depends(get_db),
 ) -> dict[str, str]:
     body = await request.body()
-    expected = hmac.new(settings.webhook_secret.encode(), body, hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(expected, x_webhook_signature):
-        raise AppError(status.HTTP_401_UNAUTHORIZED, "invalid_signature", "Invalid webhook signature.")
-    payload = json.loads(body)
-    event = WebhookEvent(provider=provider, external_id=x_webhook_id, event_type=str(payload.get("type", "unknown")), payload=body.decode())
-    db.add(event)
     try:
-        db.commit()
-    except IntegrityError:
-        db.rollback()
-        return {"status": "duplicate"}
-    return {"status": "accepted"}
+        payload = json.loads(body)
+    except ValueError as exc:
+        raise AppError(400, "invalid_webhook_payload", "Webhook payload must be valid JSON.") from exc
+    if not isinstance(payload, dict):
+        raise AppError(400, "invalid_webhook_payload", "Webhook payload must be a JSON object.")
+    headers = {key.lower(): value for key, value in request.headers.items()}
+    return WebhookService(db).process(provider, doctor_id, body, headers, payload)

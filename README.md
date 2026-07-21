@@ -1,3 +1,7 @@
+<p align="center">
+	<img width="150" height="150" src="frontend/assets/logo_white_bg.png" alt="Cap logo">
+</p>
+
 <h1 align="center">threecal</h1>
 
 <p align="center">

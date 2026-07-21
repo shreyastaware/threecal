@@ -23,4 +23,6 @@ class BookingRead(BaseModel):
     starts_at: datetime
     ends_at: datetime
     status: BookingStatus
+    provider_payment_id: str | None
+    booking_amount: int
     payment_expires_at: datetime
