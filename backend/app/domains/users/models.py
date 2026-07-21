@@ -36,3 +36,6 @@ class User(Base):
     oauth_accounts: Mapped[list["OAuthAccount"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
     )
+
+# Add this at the bottom of the file to ensure the registry knows about OAuthAccount
+from app.domains.auth.models import OAuthAccount
