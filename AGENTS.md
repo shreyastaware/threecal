@@ -38,3 +38,5 @@ Important Philosophy
 - Follow Clean Architecture principles where practical.
 - Avoid overengineering while ensuring future scalability.
 - Every business domain (Auth, Users, Bookings, Availability, Payments, etc.) must have its own isolated module containing its specific routers, services, repositories, schemas, and models.
+
+Ignore reading session_transcripts/ folder and its files

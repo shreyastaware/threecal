@@ -5,3 +5,5 @@ __pycache__/
 backend/*.db
 test_credentials.txt
 instructions/
+session_transcripts/
+dump/
