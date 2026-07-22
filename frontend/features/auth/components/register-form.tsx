@@ -12,7 +12,7 @@ import {
   registerSchema,
   type RegisterFormValues,
 } from "@/features/auth/schemas/auth";
-import { ApiError } from "@/lib/api/client";
+import { getErrorMessage } from "@/lib/api/client";
 
 export function RegisterForm() {
   const router = useRouter();
@@ -28,13 +28,9 @@ export function RegisterForm() {
     setServerError(null);
     try {
       await createAccount(values);
-      router.replace("/dashboard");
+       router.replace("/onboarding");
     } catch (error) {
-      setServerError(
-        error instanceof ApiError
-          ? error.message
-          : "Unable to create your account right now.",
-      );
+      setServerError(getErrorMessage(error, "Unable to create your account right now."));
     }
   });
 

@@ -1,5 +1,10 @@
 {
- "name": "App",
+  "name": "Threecal",
+  "short_name": "Threecal",
+  "description": "Paid appointment booking for people whose time carries value.",
+  "theme_color": "#17201b",
+  "background_color": "#f4f0e6",
+  "display": "standalone",
  "icons": [
   {
    "src": "\/android-icon-36x36.png",

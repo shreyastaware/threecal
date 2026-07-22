@@ -12,7 +12,7 @@ import {
   loginSchema,
   type LoginFormValues,
 } from "@/features/auth/schemas/auth";
-import { ApiError } from "@/lib/api/client";
+import { getErrorMessage } from "@/lib/api/client";
 
 export function LoginForm() {
   const router = useRouter();
@@ -27,12 +27,10 @@ export function LoginForm() {
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
     try {
-      await login(values);
-      router.replace("/dashboard");
+      const user = await login(values);
+      router.replace(user.username ? "/dashboard" : "/onboarding");
     } catch (error) {
-      setServerError(
-        error instanceof ApiError ? error.message : "Unable to sign in right now.",
-      );
+      setServerError(getErrorMessage(error, "Unable to sign in right now."));
     }
   });
 

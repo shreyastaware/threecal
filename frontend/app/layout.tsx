@@ -18,7 +18,7 @@ const sans = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "Threecal — Paid appointment booking",
+  title: "Threecal - Sell your expertise",
   description: "Turn your expertise and availability into one considered link.",
 };
 

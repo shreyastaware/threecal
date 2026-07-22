@@ -7,11 +7,13 @@ export type WorkingHour = {
   start_time: string;
   end_time: string;
   is_enabled: boolean;
-  breaks: { start_time: string; end_time: string }[];
+  breaks: { id?: string; start_time: string; end_time: string }[];
 };
 
+export type ProfileUpdate = Partial<Pick<User, "full_name" | "username" | "bio" | "timezone" | "avatar_url">>;
+
 export const schedulingApi = {
-  updateProfile: (data: Partial<Pick<User, "full_name" | "username" | "bio" | "timezone" | "avatar_url">>) =>
+  updateProfile: (data: ProfileUpdate) =>
     apiRequest<User>("/users/me", { method: "PATCH", body: JSON.stringify(data) }),
   getSchedule: () => apiRequest<WorkingHour[]>("/availability"),
   saveSchedule: (working_hours: WorkingHour[]) =>

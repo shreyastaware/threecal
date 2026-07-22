@@ -20,7 +20,7 @@ type AuthContextValue = {
 
 export const AuthContext = createContext<AuthContextValue | null>(null);
 
-const CURRENT_USER_KEY = ["auth", "current-user"] as const;
+export const CURRENT_USER_KEY = ["auth", "current-user"] as const;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
@@ -51,6 +51,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     await authApi.logout();
     queryClient.setQueryData(CURRENT_USER_KEY, null);
+    queryClient.removeQueries({ queryKey: ["availability"] });
+    queryClient.removeQueries({ queryKey: ["event-types"] });
+    queryClient.removeQueries({ queryKey: ["payments"] });
+    queryClient.removeQueries({ queryKey: ["billing"] });
   }, [queryClient]);
 
   const value = useMemo(

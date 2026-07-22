@@ -6,6 +6,11 @@ type ApiErrorPayload = {
   detail?: string;
 };
 
+type ValidationError = {
+  loc?: (string | number)[];
+  msg?: string;
+};
+
 export class ApiError extends Error {
   constructor(
     public readonly status: number,
@@ -15,6 +20,15 @@ export class ApiError extends Error {
     super(message);
     this.name = "ApiError";
   }
+}
+
+export function getErrorMessage(
+  error: unknown,
+  fallback = "Something went wrong. Please try again.",
+): string {
+  if (error instanceof ApiError) return error.message;
+  if (error instanceof Error) return error.message;
+  return fallback;
 }
 
 export async function apiRequest<T>(
@@ -33,11 +47,19 @@ export async function apiRequest<T>(
   });
 
   if (!response.ok) {
-    const payload = (await response.json().catch(() => ({}))) as ApiErrorPayload;
+    const payload = (await response.json().catch(() => ({}))) as
+      | ApiErrorPayload
+      | { detail?: ValidationError[] };
+    const detail = Array.isArray(payload.detail)
+      ? payload.detail
+          .map((item) => item.msg)
+          .filter((message): message is string => Boolean(message))
+          .join(" ")
+      : payload.detail;
     throw new ApiError(
       response.status,
-      payload.code ?? "request_failed",
-      payload.detail ?? "Something went wrong. Please try again.",
+      "code" in payload && payload.code ? payload.code : "request_failed",
+      detail ?? "Something went wrong. Please try again.",
     );
   }
 

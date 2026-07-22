@@ -1,6 +1,8 @@
 import { ArrowRight, Clock3 } from "lucide-react";
 import Link from "next/link";
 
+import { RoleTicker } from "@/features/marketing/components/role-ticker";
+
 export default function Home() {
   return (
     <main className="home-canvas">
@@ -18,11 +20,11 @@ export default function Home() {
         </div>
       </nav>
       <section className="home-hero">
-        <p className="kicker kicker-dark">Paid appointment booking</p>
-        <h1>
-          Your calendar,
-          <br />
-          <em>on your terms.</em>
+         <p className="kicker kicker-dark">Paid appointment booking for</p>
+         <h1>
+           <RoleTicker />
+           <br />
+           <em>on your terms.</em>
         </h1>
         <p className="home-lede">
           A thoughtful booking space for people whose time and expertise carry
