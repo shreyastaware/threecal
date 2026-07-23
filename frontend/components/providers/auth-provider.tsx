@@ -1,7 +1,8 @@
 "use client";
 
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { createContext, useCallback, useMemo } from "react";
+import { createContext, useCallback, useEffect, useMemo, useRef } from "react";
+import posthog from "posthog-js";
 
 import { authApi } from "@/features/auth/api";
 import type {
@@ -24,32 +25,57 @@ export const CURRENT_USER_KEY = ["auth", "current-user"] as const;
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const queryClient = useQueryClient();
+  const identifiedUserId = useRef<string | null>(null);
   const currentUserQuery = useQuery({
     queryKey: CURRENT_USER_KEY,
     queryFn: authApi.currentUser,
     retry: false,
   });
 
+  const identifyUser = useCallback((user: User) => {
+    if (identifiedUserId.current === user.id) return;
+
+    if (identifiedUserId.current) {
+      posthog.reset();
+    }
+
+    posthog.identify(user.id, {
+      email: user.email,
+      name: user.full_name,
+    });
+    identifiedUserId.current = user.id;
+  }, []);
+
+  useEffect(() => {
+    if (currentUserQuery.data) {
+      identifyUser(currentUserQuery.data);
+    }
+  }, [currentUserQuery.data, identifyUser]);
+
   const login = useCallback(
     async (input: LoginInput) => {
       const { user } = await authApi.login(input);
+      identifyUser(user);
       queryClient.setQueryData(CURRENT_USER_KEY, user);
       return user;
     },
-    [queryClient],
+    [identifyUser, queryClient],
   );
 
   const register = useCallback(
     async (input: RegisterInput) => {
       const { user } = await authApi.register(input);
+      identifyUser(user);
       queryClient.setQueryData(CURRENT_USER_KEY, user);
       return user;
     },
-    [queryClient],
+    [identifyUser, queryClient],
   );
 
   const logout = useCallback(async () => {
     await authApi.logout();
+    posthog.reset();
+    identifiedUserId.current = null;
     queryClient.setQueryData(CURRENT_USER_KEY, null);
     queryClient.removeQueries({ queryKey: ["availability"] });
     queryClient.removeQueries({ queryKey: ["event-types"] });

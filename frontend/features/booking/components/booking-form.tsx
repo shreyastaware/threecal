@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation } from "@tanstack/react-query";
 import { ArrowLeft, Check, LoaderCircle } from "lucide-react";
+import posthog from "posthog-js";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
@@ -60,6 +61,13 @@ export function BookingForm({
   const onSubmit = handleSubmit(async (values) => {
     const created = await create.mutateAsync(values);
     setBooking(created);
+    posthog.capture("booking_created", {
+      booking_status: created.status,
+      is_paid: created.booking_amount > 0,
+      booking_amount: created.booking_amount,
+      currency: page.event_type.currency,
+      event_duration_minutes: page.event_type.duration_minutes,
+    });
     if (created.status === "pending") startCheckout.mutate(created.id);
   });
 

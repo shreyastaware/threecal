@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 
@@ -28,6 +29,9 @@ export function LoginForm() {
     setServerError(null);
     try {
       const user = await login(values);
+      posthog.capture("login_succeeded", {
+        has_username: Boolean(user.username),
+      });
       router.replace(user.username ? "/dashboard" : "/onboarding");
     } catch (error) {
       setServerError(getErrorMessage(error, "Unable to sign in right now."));

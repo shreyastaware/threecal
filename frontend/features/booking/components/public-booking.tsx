@@ -3,6 +3,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, CalendarDays, Clock3, LoaderCircle, MapPin } from "lucide-react";
 import Image from "next/image";
+import posthog from "posthog-js";
 import { useMemo, useState } from "react";
 
 import { StatusMessage } from "@/features/dashboard/components/status-message";
@@ -71,7 +72,7 @@ export function PublicBooking({ username, eventSlug }: { username: string; event
         {selected ? <BookingForm username={username} eventSlug={eventSlug} page={page.data} selected={selected} timezone={viewerTimezone} onBack={() => setSelected(null)} /> : <div className="slot-list">
           {slots.isLoading && <p className="booking-processing"><LoaderCircle className="spin"/> Checking availability</p>}
           {slots.isError && <StatusMessage>{getErrorMessage(slots.error)}</StatusMessage>}
-          {days.map(([day, daySlots]) => <article key={day}><h3>{new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</h3><div>{daySlots.map((slot) => <button className="slot-button" type="button" onClick={() => setSelected(slot.starts_at)} key={slot.starts_at}>{new Date(slot.starts_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZone: viewerTimezone })}<ArrowRight/></button>)}</div></article>)}
+          {days.map(([day, daySlots]) => <article key={day}><h3>{new Date(`${day}T12:00:00`).toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })}</h3><div>{daySlots.map((slot) => <button className="slot-button" type="button" onClick={() => { posthog.capture("booking_slot_selected", { event_duration_minutes: page.data.event_type.duration_minutes, is_paid: page.data.event_type.price_minor > 0 }); setSelected(slot.starts_at); }} key={slot.starts_at}>{new Date(slot.starts_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", timeZone: viewerTimezone })}<ArrowRight/></button>)}</div></article>)}
           {!slots.isLoading && !slots.isError && !slots.data?.length && <p>No open times in the next two weeks.</p>}
         </div>}
       </section>

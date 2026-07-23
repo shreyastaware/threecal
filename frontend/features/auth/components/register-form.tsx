@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { ArrowRight, LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import posthog from "posthog-js";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 
@@ -27,8 +28,11 @@ export function RegisterForm() {
   const onSubmit = handleSubmit(async (values) => {
     setServerError(null);
     try {
-      await createAccount(values);
-       router.replace("/onboarding");
+      const user = await createAccount(values);
+      posthog.capture("registration_completed", {
+        has_username: Boolean(user.username),
+      });
+      router.replace("/onboarding");
     } catch (error) {
       setServerError(getErrorMessage(error, "Unable to create your account right now."));
     }

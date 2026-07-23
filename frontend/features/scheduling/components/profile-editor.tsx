@@ -3,6 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, LoaderCircle } from "lucide-react";
+import posthog from "posthog-js";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 
@@ -71,6 +72,12 @@ export function ProfileEditor({ user, onSaved }: { user: User; onSaved?: (update
       timezone: updated.timezone,
       bio: updated.bio ?? "",
       avatar_url: updated.avatar_url ?? "",
+    });
+    posthog.capture("profile_updated", {
+      has_booking_url: Boolean(updated.username),
+      timezone: updated.timezone,
+      has_bio: Boolean(updated.bio),
+      has_avatar: Boolean(updated.avatar_url),
     });
     onSaved?.(updated);
   });

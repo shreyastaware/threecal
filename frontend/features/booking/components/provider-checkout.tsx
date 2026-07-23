@@ -1,6 +1,7 @@
 "use client";
 
 import { ArrowRight, Check, ExternalLink, LoaderCircle } from "lucide-react";
+import posthog from "posthog-js";
 import { useEffect, useRef, useState } from "react";
 
 import type { Checkout } from "@/features/payments/api";
@@ -92,6 +93,10 @@ export function ProviderCheckout({ checkout }: { checkout: Checkout }) {
   }, [checkout]);
 
   async function startPayment() {
+    posthog.capture("payment_checkout_started", {
+      provider: checkout.provider,
+      checkout_type: checkout.checkout_url ? "redirect" : "embedded",
+    });
     setError(null);
     try {
       if (checkout.checkout_url) {

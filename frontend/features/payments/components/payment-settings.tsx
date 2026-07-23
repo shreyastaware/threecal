@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ExternalLink, LoaderCircle, ShieldCheck } from "lucide-react";
+import posthog from "posthog-js";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 
@@ -29,6 +30,10 @@ export function PaymentSettings() {
     mutationFn: paymentsApi.connectCredentials,
     onSuccess: (saved) => {
       queryClient.setQueryData(["payments", "config"], saved);
+      posthog.capture("payment_provider_connected", {
+        provider: saved.provider,
+        connection_method: "credentials",
+      });
       reset({ ...emptyValues, provider: saved.provider });
       setProvider(saved.provider);
     },
@@ -38,6 +43,9 @@ export function PaymentSettings() {
   async function beginOAuth(oauthProvider: "stripe" | "paypal") {
     try {
       const { authorization_url } = await oauth.mutateAsync(oauthProvider);
+      posthog.capture("payment_provider_oauth_started", {
+        provider: oauthProvider,
+      });
       window.location.assign(authorization_url);
     } catch {
       // The mutation error is rendered below.

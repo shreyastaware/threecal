@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, LoaderCircle, Plus, Trash2 } from "lucide-react";
+import posthog from "posthog-js";
 import { useState } from "react";
 
 import { StatusMessage } from "@/features/dashboard/components/status-message";
@@ -59,7 +60,7 @@ export function ScheduleEditor() {
       return;
     }
     setValidationError(null);
-    save.mutate(result.data, { onSuccess: (updated) => { setEditedHours(normalizeHours(updated)); queryClient.setQueryData(["availability"], updated); } });
+    save.mutate(result.data, { onSuccess: (updated) => { setEditedHours(normalizeHours(updated)); queryClient.setQueryData(["availability"], updated); posthog.capture("availability_updated", { enabled_days: updated.filter((day) => day.is_enabled).length, total_breaks: updated.reduce((total, day) => total + day.breaks.length, 0) }); } });
   }
 
   if (schedule.isLoading) return <section className="workspace-panel"><div className="panel-heading"><span>02 / Availability</span><h2>Loading your rhythm</h2></div><LoaderCircle className="spin" /></section>;

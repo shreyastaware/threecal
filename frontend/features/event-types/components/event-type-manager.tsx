@@ -4,6 +4,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Edit3, LoaderCircle, Plus, X } from "lucide-react";
 import Link from "next/link";
+import posthog from "posthog-js";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
@@ -62,10 +63,24 @@ export function EventTypeManager() {
   }, [editing, events.data, reset]);
 
   const onSubmit = handleSubmit((values) => {
-    save.mutate({
-      id: editing ?? undefined,
-      input: { ...values, description: values.description || null, currency: values.currency.toUpperCase() },
-    });
+    const isNewEventType = !editing;
+    save.mutate(
+      {
+        id: editing ?? undefined,
+        input: { ...values, description: values.description || null, currency: values.currency.toUpperCase() },
+      },
+      {
+        onSuccess: (event) => {
+          posthog.capture(isNewEventType ? "event_type_created" : "event_type_updated", {
+            duration_minutes: event.duration_minutes,
+            slot_interval_minutes: event.slot_interval_minutes,
+            price_minor: event.price_minor,
+            currency: event.currency,
+            is_active: event.is_active,
+          });
+        },
+      },
+    );
   });
 
   return (

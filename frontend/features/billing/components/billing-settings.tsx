@@ -3,6 +3,7 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowRight, Check, ExternalLink, LoaderCircle } from "lucide-react";
+import posthog from "posthog-js";
 import { useForm } from "react-hook-form";
 
 import { StatusMessage } from "@/features/dashboard/components/status-message";
@@ -20,12 +21,16 @@ export function BillingSettings() {
   const { register, reset, handleSubmit, formState: { errors } } = useForm<BillingCompleteFormValues>({ resolver: zodResolver(billingCompleteSchema) });
   const start = useMutation({
     mutationFn: billingApi.startSetup,
-    onSuccess: ({ checkout_url }) => window.location.assign(checkout_url),
+    onSuccess: ({ checkout_url }) => {
+      posthog.capture("billing_setup_started");
+      window.location.assign(checkout_url);
+    },
   });
   const complete = useMutation({
     mutationFn: billingApi.completeSetup,
     onSuccess: (updated) => {
       queryClient.setQueryData(["billing"], updated);
+      posthog.capture("billing_mandate_verified");
       reset();
     },
   });
