@@ -41,6 +41,7 @@ class CheckoutRead(BaseModel):
     provider_payment_id: str
     client_secret: str | None = None
     checkout_url: str | None = None
+    public_key: str | None = None
 
 
 Currency = Annotated[str, Field(min_length=3, max_length=3)]

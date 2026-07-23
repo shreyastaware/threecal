@@ -1,15 +1,26 @@
 "use client";
 
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, ExternalLink, LoaderCircle, ShieldCheck } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import {
+  ArrowUpRight,
+  Check,
+  KeyRound,
+  LoaderCircle,
+  LockKeyhole,
+  RefreshCw,
+  ShieldCheck,
+} from "lucide-react";
+import Image from "next/image";
 import posthog from "posthog-js";
-import { useState } from "react";
-import { useForm } from "react-hook-form";
 
 import { StatusMessage } from "@/features/dashboard/components/status-message";
-import { paymentsApi, PAYMENT_PROVIDERS, type PaymentProvider } from "@/features/payments/api";
-import { credentialConnectSchema, type CredentialConnectFormValues } from "@/features/payments/schemas";
+import {
+  OAUTH_PAYMENT_PROVIDERS,
+  paymentsApi,
+  type OAuthPaymentProvider,
+  type PaymentProvider,
+} from "@/features/payments/api";
+import { PAYMENT_PROVIDER_LOGOS } from "@/features/payments/provider-assets";
 import { getErrorMessage } from "@/lib/api/client";
 
 const providerLabels: Record<PaymentProvider, string> = {
@@ -20,27 +31,40 @@ const providerLabels: Record<PaymentProvider, string> = {
   btcpay: "BTCPay",
 };
 
+const providerDetails: Record<
+  OAuthPaymentProvider,
+  {
+    description: string;
+    market: string;
+  }
+> = {
+  stripe: {
+    description: "Cards, wallets, and international payments",
+    market: "Global",
+  },
+  paypal: {
+    description: "PayPal balance, cards, and pay-later options",
+    market: "Global",
+  },
+  razorpay: {
+    description: "UPI, cards, net banking, and wallets",
+    market: "India",
+  },
+  cashfree: {
+    description: "UPI, cards, and bank transfer checkout",
+    market: "India",
+  },
+};
+
 export function PaymentSettings() {
-  const queryClient = useQueryClient();
-  const config = useQuery({ queryKey: ["payments", "config"], queryFn: paymentsApi.getConfig });
-  const [provider, setProvider] = useState<PaymentProvider>("cashfree");
-  const emptyValues: CredentialConnectFormValues = { provider: "cashfree", api_key: "", secret_key: "", account_id: "", store_url: "", store_id: "", webhook_secret: "" };
-  const { register, reset, handleSubmit, formState: { errors } } = useForm<CredentialConnectFormValues>({ resolver: zodResolver(credentialConnectSchema), defaultValues: emptyValues });
-  const connect = useMutation({
-    mutationFn: paymentsApi.connectCredentials,
-    onSuccess: (saved) => {
-      queryClient.setQueryData(["payments", "config"], saved);
-      posthog.capture("payment_provider_connected", {
-        provider: saved.provider,
-        connection_method: "credentials",
-      });
-      reset({ ...emptyValues, provider: saved.provider });
-      setProvider(saved.provider);
-    },
+  const config = useQuery({
+    queryKey: ["payments", "config"],
+    queryFn: paymentsApi.getConfig,
+    refetchOnWindowFocus: true,
   });
   const oauth = useMutation({ mutationFn: paymentsApi.startOAuth });
 
-  async function beginOAuth(oauthProvider: "stripe" | "paypal") {
+  async function beginOAuth(oauthProvider: OAuthPaymentProvider) {
     try {
       const { authorization_url } = await oauth.mutateAsync(oauthProvider);
       posthog.capture("payment_provider_oauth_started", {
@@ -52,39 +76,119 @@ export function PaymentSettings() {
     }
   }
 
-  const onSubmit = handleSubmit((values) => connect.mutate({ ...values, provider }));
-  const isCredentialProvider = provider !== "stripe" && provider !== "paypal";
+  const connectedProvider = config.data?.connected
+    ? config.data.provider
+    : null;
 
   return (
     <section className="workspace-panel payment-panel">
       <div className="panel-heading">
-        <div><span>Payment routing</span><h2>Collect on your terms</h2></div>
-        <p>Payments go directly through the provider connected to your account. Secrets are encrypted by the API and never returned here.</p>
+        <div>
+          <span>Payment routing</span>
+          <h2>Bring your own account</h2>
+        </div>
+        <p>
+          Choose a provider and approve Threecal on its website. Your account
+          credentials never enter this dashboard.
+        </p>
       </div>
+
       <div className="payment-settings-body">
-        <div className="connected-provider">
-          <ShieldCheck size={18}/>
-          <div><strong>{config.data?.connected ? `${providerLabels[config.data.provider]} connected` : "No payment provider connected"}</strong><p>{config.data?.connected ? "Paid event types can route payments through this account once platform billing is ready." : "Connect a provider before publishing paid event types."}</p></div>
+        <div
+          className={`connected-provider ${connectedProvider ? "is-connected" : ""}`}
+        >
+          {config.isLoading ? (
+            <LoaderCircle className="spin" size={18} />
+          ) : (
+            <ShieldCheck size={18} />
+          )}
+          <div>
+            <span>Active payout route</span>
+            <strong>
+              {connectedProvider
+                ? `${providerLabels[connectedProvider]} is connected`
+                : "No provider connected yet"}
+            </strong>
+            <p>
+              {connectedProvider
+                ? "New paid bookings will use this account. Connecting another provider replaces the active route."
+                : "Connect one account before publishing paid event types."}
+            </p>
+          </div>
         </div>
-        <div className="provider-tabs" role="tablist" aria-label="Payment providers">
-          {PAYMENT_PROVIDERS.map((item) => <button className={provider === item ? "active" : ""} key={item} type="button" onClick={() => setProvider(item)}>{providerLabels[item]}</button>)}
+
+        <div className="provider-grid" aria-label="Payment providers">
+          {OAUTH_PAYMENT_PROVIDERS.map((provider) => {
+            const details = providerDetails[provider];
+            const logo = PAYMENT_PROVIDER_LOGOS[provider];
+            const isConnected = connectedProvider === provider;
+            const isPending =
+              oauth.isPending && oauth.variables === provider;
+
+            return (
+              <article
+                className={`provider-card provider-${provider} ${isConnected ? "is-connected" : ""}`}
+                key={provider}
+              >
+                <div className="provider-card-head">
+                  <span className="provider-logo" aria-hidden="true">
+                    <Image
+                      alt=""
+                      height={logo.height}
+                      src={logo.src}
+                      width={logo.width}
+                    />
+                  </span>
+                  <span className="provider-market">{details.market}</span>
+                </div>
+                <div className="provider-card-copy">
+                  <h3>{providerLabels[provider]}</h3>
+                  <p>{details.description}</p>
+                </div>
+                {isConnected && (
+                  <span className="provider-connected-label">
+                    <Check size={13} /> Connected
+                  </span>
+                )}
+                <button
+                  className="provider-connect-button"
+                  disabled={oauth.isPending}
+                  onClick={() => beginOAuth(provider)}
+                  type="button"
+                >
+                  {isPending ? (
+                    <LoaderCircle className="spin" size={15} />
+                  ) : isConnected ? (
+                    <RefreshCw size={15} />
+                  ) : (
+                    <ArrowUpRight size={15} />
+                  )}
+                  {isPending
+                    ? "Opening provider"
+                    : isConnected
+                      ? "Reconnect"
+                      : `Connect ${providerLabels[provider]}`}
+                </button>
+                {oauth.isError && oauth.variables === provider && (
+                  <StatusMessage>{getErrorMessage(oauth.error)}</StatusMessage>
+                )}
+              </article>
+            );
+          })}
         </div>
-        {(provider === "stripe" || provider === "paypal") ? <div className="oauth-connect">
-          <p>{providerLabels[provider]} uses a secure OAuth connection. You will be redirected to the provider and returned to this dashboard.</p>
-          {oauth.isError && <StatusMessage>{getErrorMessage(oauth.error)}</StatusMessage>}
-          <button className="save-button" type="button" disabled={oauth.isPending} onClick={() => beginOAuth(provider)}>{oauth.isPending ? <LoaderCircle className="spin" size={16}/> : <ExternalLink size={16}/>} Connect {providerLabels[provider]}</button>
-        </div> : <form className="credential-form" onSubmit={onSubmit} noValidate>
-          <input type="hidden" value={provider} {...register("provider")} />
-          <label><span>{providerLabels[provider]} API key</span><input type="password" autoComplete="new-password" {...register("api_key")} />{errors.api_key && <small className="field-error">{errors.api_key.message}</small>}</label>
-          <label><span>Secret key</span><input type="password" autoComplete="new-password" {...register("secret_key")} />{errors.secret_key && <small className="field-error">{errors.secret_key.message}</small>}</label>
-          {provider === "btcpay" && <><label><span>Store URL</span><input placeholder="https://store.example.com" {...register("store_url")} />{errors.store_url && <small className="field-error">{errors.store_url.message}</small>}</label><label><span>Store ID</span><input {...register("store_id")} />{errors.store_id && <small className="field-error">{errors.store_id.message}</small>}</label></>}
-          {provider !== "btcpay" && <label><span>Account or merchant ID <small>(optional)</small></span><input {...register("account_id")} /></label>}
-          <label><span>Webhook secret <small>(optional)</small></span><input type="password" autoComplete="new-password" {...register("webhook_secret")} /></label>
-          {connect.isError && <StatusMessage>{getErrorMessage(connect.error)}</StatusMessage>}
-          {connect.isSuccess && <StatusMessage tone="success"><Check size={14}/> Provider connected.</StatusMessage>}
-          <button className="save-button" type="submit" disabled={connect.isPending}>{connect.isPending ? <LoaderCircle className="spin" size={16}/> : <Check size={16}/>} {connect.isPending ? "Connecting" : "Save provider"}</button>
-        </form>}
-        {isCredentialProvider && <p className="form-hint">The API registers a webhook during connection. Provider verification may take a moment.</p>}
+
+        <div className="oauth-security-note">
+          <LockKeyhole size={18} />
+          <div>
+            <strong>Protected by provider-hosted OAuth</strong>
+            <p>
+              You sign in and approve access on the provider&apos;s website.
+              Threecal receives a limited token through its backend and never
+              asks for your API keys, client secrets, or password.
+            </p>
+          </div>
+          <KeyRound size={18} />
+        </div>
       </div>
     </section>
   );

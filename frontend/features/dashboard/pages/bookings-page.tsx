@@ -6,5 +6,27 @@ import { DashboardHeader } from "@/features/dashboard/components/dashboard-heade
 import { DashboardShell } from "@/features/dashboard/components/dashboard-shell";
 
 export function BookingsPage() {
-  return <DashboardShell><DashboardHeader eyebrow="Bookings" title={<>A clear view of<br/><em>what is next.</em></>} description="Booking-list, status, and cancellation endpoints are not exposed by the current API yet." /><section className="empty-feature"><CalendarDays size={26}/><h2>Booking management is API-bound</h2><p>Public bookings are created and paid through their event link. Once the backend exposes a host booking list, this view is ready for that data without changing the workspace navigation.</p></section></DashboardShell>;
+  return (
+    <DashboardShell>
+      <DashboardHeader
+        eyebrow="Bookings"
+        title={
+          <>
+            Your schedule,
+            <br />
+            <em>all in one place.</em>
+          </>
+        }
+        description="See who has booked time with you and keep track of every upcoming appointment."
+      />
+      <section className="empty-feature">
+        <CalendarDays aria-hidden="true" size={26} />
+        <h2>No bookings yet</h2>
+        <p>
+          When someone books time with you, their appointment will appear here.
+          Share your booking link to get your first booking.
+        </p>
+      </section>
+    </DashboardShell>
+  );
 }

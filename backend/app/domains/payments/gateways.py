@@ -32,6 +32,7 @@ class PaymentSession:
     payment_id: str
     client_secret: str | None = None
     checkout_url: str | None = None
+    public_key: str | None = None
 
 
 def format_minor_amount(amount_minor: int) -> str:
@@ -99,7 +100,11 @@ class StripeGateway(PaymentGateway):
             timeout=15,
         )
         payload = self._json(response)
-        return PaymentSession(str(payload["id"]), client_secret=str(payload["client_secret"]))
+        return PaymentSession(
+            str(payload["id"]),
+            client_secret=str(payload["client_secret"]),
+            public_key=self.credentials.get("publishable_key"),
+        )
 
     def verify_webhook(self, body: bytes, headers: dict[str, str], secret: str) -> bool:
         signature = headers.get("stripe-signature", "")
@@ -120,10 +125,16 @@ class RazorpayGateway(PaymentGateway):
     def _auth(self) -> tuple[str, str]:
         return self.credentials["api_key"], self.credentials["secret_key"]
 
+    def _headers(self) -> dict[str, str]:
+        access_token = self.credentials.get("access_token")
+        return {"Authorization": f"Bearer {access_token}"} if access_token else {}
+
     def register_webhook(self, endpoint_url: str, proposed_secret: str) -> str:
+        access_token = self.credentials.get("access_token")
         response = httpx.post(
             "https://api.razorpay.com/v1/webhooks",
-            auth=self._auth(),
+            auth=None if access_token else self._auth(),
+            headers=self._headers(),
             json={"url": endpoint_url, "secret": proposed_secret, "active": True, "events": ["order.paid"]},
             timeout=15,
         )
@@ -131,14 +142,19 @@ class RazorpayGateway(PaymentGateway):
         return proposed_secret
 
     def create_payment(self, request: PaymentRequest) -> PaymentSession:
+        access_token = self.credentials.get("access_token")
         response = httpx.post(
             "https://api.razorpay.com/v1/orders",
-            auth=self._auth(),
+            auth=None if access_token else self._auth(),
+            headers=self._headers(),
             json={"amount": request.amount_minor, "currency": request.currency, "notes": {"booking_id": request.booking_id, "doctor_id": request.doctor_id}},
             timeout=15,
         )
         payload = self._json(response)
-        return PaymentSession(str(payload["id"]))
+        return PaymentSession(
+            str(payload["id"]),
+            public_key=self.credentials.get("public_token"),
+        )
 
     def verify_webhook(self, body: bytes, headers: dict[str, str], secret: str) -> bool:
         expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
@@ -149,16 +165,24 @@ class CashfreeGateway(PaymentGateway):
     provider = PaymentProvider.CASHFREE
 
     def _headers(self) -> dict[str, str]:
+        access_token = self.credentials.get("access_token")
+        if access_token:
+            return {
+                "Authorization": f"Bearer {access_token}",
+                "x-api-version": "2025-01-01",
+            }
         return {"x-client-id": self.credentials["api_key"], "x-client-secret": self.credentials["secret_key"], "x-api-version": "2025-01-01"}
 
     def register_webhook(self, endpoint_url: str, proposed_secret: str) -> str:
-        response = httpx.post("https://api.cashfree.com/pg/webhooks", headers=self._headers(), json={"webhook_url": endpoint_url}, timeout=15)
+        if self.credentials.get("access_token"):
+            return self.credentials["partner_api_key"]
+        response = httpx.post(f"{self.credentials.get('payments_url', 'https://api.cashfree.com')}/pg/webhooks", headers=self._headers(), json={"webhook_url": endpoint_url}, timeout=15)
         self._json(response)
         return proposed_secret
 
     def create_payment(self, request: PaymentRequest) -> PaymentSession:
         response = httpx.post(
-            "https://api.cashfree.com/pg/orders",
+            f"{self.credentials.get('payments_url', 'https://api.cashfree.com')}/pg/orders",
             headers=self._headers(),
             json={
                 "order_id": request.booking_id,

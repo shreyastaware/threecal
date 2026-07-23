@@ -38,7 +38,7 @@ def start_oauth(provider: PaymentProvider, current_user: User = Depends(get_curr
 @router.get("/oauth/{provider}/callback")
 def oauth_callback(provider: PaymentProvider, code: str = Query(), state: str = Query(), db: Session = Depends(get_db)) -> RedirectResponse:
     PaymentOnboardingService(db).complete_oauth(provider, code, state)
-    return RedirectResponse(f"{settings.frontend_url.rstrip('/')}/dashboard?payment_provider=connected")
+    return RedirectResponse(f"{settings.frontend_url.rstrip('/')}/dashboard/payments?connection=success")
 
 
 @router.post("/bookings/{booking_id}/checkout", response_model=CheckoutRead)

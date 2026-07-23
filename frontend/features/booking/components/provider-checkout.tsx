@@ -57,7 +57,9 @@ export function ProviderCheckout({ checkout }: { checkout: Checkout }) {
     async function prepare() {
       try {
         if (checkout.provider === "stripe" && checkout.client_secret) {
-          const key = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
+          const key =
+            checkout.public_key ??
+            process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY;
           if (!key) throw new Error("Stripe checkout is not configured on this website.");
           await loadScript("https://js.stripe.com/v3/");
           const stripe = window.Stripe?.(key);
@@ -114,7 +116,8 @@ export function ProviderCheckout({ checkout }: { checkout: Checkout }) {
         return;
       }
       if (checkout.provider === "razorpay" && window.Razorpay) {
-        const key = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+        const key =
+          checkout.public_key ?? process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
         if (!key) throw new Error("Razorpay checkout is not configured on this website.");
         new window.Razorpay({ key, order_id: checkout.provider_payment_id, handler: () => setMessage("Payment submitted. Your booking will be confirmed after verification.") }).open();
         return;

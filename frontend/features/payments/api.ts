@@ -1,6 +1,6 @@
 import { apiRequest } from "@/lib/api/client";
 
-export const PAYMENT_PROVIDERS = [
+export const PAYMENT_PROVIDER_VALUES = [
   "stripe",
   "razorpay",
   "cashfree",
@@ -8,7 +8,15 @@ export const PAYMENT_PROVIDERS = [
   "btcpay",
 ] as const;
 
-export type PaymentProvider = (typeof PAYMENT_PROVIDERS)[number];
+export const OAUTH_PAYMENT_PROVIDERS = [
+  "stripe",
+  "paypal",
+  "razorpay",
+  "cashfree",
+] as const;
+
+export type PaymentProvider = (typeof PAYMENT_PROVIDER_VALUES)[number];
+export type OAuthPaymentProvider = (typeof OAUTH_PAYMENT_PROVIDERS)[number];
 
 export type PaymentConfig = {
   provider: PaymentProvider;
@@ -16,31 +24,17 @@ export type PaymentConfig = {
   connected: boolean;
 };
 
-export type CredentialConnectInput = {
-  provider: PaymentProvider;
-  api_key: string;
-  secret_key?: string;
-  account_id?: string;
-  store_url?: string;
-  store_id?: string;
-  webhook_secret?: string;
-};
-
 export type Checkout = {
   provider: PaymentProvider;
   provider_payment_id: string;
   client_secret: string | null;
   checkout_url: string | null;
+  public_key: string | null;
 };
 
 export const paymentsApi = {
   getConfig: () => apiRequest<PaymentConfig | null>("/payments/config"),
-  connectCredentials: (input: CredentialConnectInput) =>
-    apiRequest<PaymentConfig>("/payments/config", {
-      method: "POST",
-      body: JSON.stringify(input),
-    }),
-  startOAuth: (provider: "stripe" | "paypal") =>
+  startOAuth: (provider: OAuthPaymentProvider) =>
     apiRequest<{ authorization_url: string }>(
       `/payments/oauth/${provider}/authorize`,
     ),
