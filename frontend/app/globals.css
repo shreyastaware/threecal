@@ -88,12 +88,8 @@ a {
 
 .home-canvas {
   min-height: 100vh;
-  overflow: hidden;
+  overflow-x: hidden;
   position: relative;
-  background:
-    linear-gradient(90deg, transparent 49.9%, var(--line) 50%, transparent 50.1%),
-    linear-gradient(var(--line) 1px, transparent 1px);
-  background-size: 100% 100%, 100% 25%;
 }
 
 .home-nav {
@@ -131,9 +127,14 @@ a {
 
 .home-hero {
   margin-left: clamp(1.25rem, 9vw, 9rem);
-  padding-top: clamp(5rem, 12vh, 8rem);
+  padding: clamp(5rem, 12vh, 8rem) clamp(1.25rem, 5vw, 5rem) clamp(6rem, 14vh, 9rem) 0;
   position: relative;
   z-index: 2;
+  min-height: 74vh;
+  background:
+    linear-gradient(90deg, transparent 49.9%, var(--line) 50%, transparent 50.1%),
+    linear-gradient(var(--line) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 6rem;
 }
 
 .home-hero h1,
@@ -922,4 +923,411 @@ a {
   .break-row { flex-wrap: wrap; }
   .break-row input { flex: 1; min-width: 6rem; }
   .booking-form-heading h3 { font-size: 1.9rem; }
+}
+
+/* ---------------------------------------------------------------------------
+   Marketing landing page sections
+   ------------------------------------------------------------------------- */
+
+.marketing-section {
+  padding: clamp(4rem, 9vw, 8rem) clamp(1.25rem, 9vw, 9rem);
+  position: relative;
+}
+
+.marketing-section-head {
+  max-width: 40rem;
+  margin-bottom: clamp(2.5rem, 5vw, 4rem);
+}
+
+.marketing-section-head h2 {
+  font-family: var(--font-display), serif;
+  font-size: clamp(2.4rem, 5vw, 4rem);
+  font-weight: 500;
+  letter-spacing: -0.05em;
+  line-height: 0.95;
+  margin: 1rem 0 0;
+}
+
+/* Trusted by strip */
+.trusted-by {
+  align-items: center;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2.5rem;
+  padding: 1.75rem clamp(1.25rem, 9vw, 9rem);
+}
+
+.trusted-label {
+  color: var(--muted);
+  font-size: 0.62rem;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.trusted-roles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 2rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.trusted-roles li {
+  font-family: var(--font-display), serif;
+  font-size: clamp(1.1rem, 2vw, 1.5rem);
+  font-weight: 500;
+}
+
+/* How it works */
+.how-grid {
+  counter-reset: step;
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(3, 1fr);
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.how-step {
+  background: var(--paper);
+  display: grid;
+  gap: 0.75rem;
+  padding: clamp(1.75rem, 3vw, 2.5rem);
+}
+
+.how-index {
+  color: var(--coral);
+  font-size: 0.7rem;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+}
+
+.how-step h3 {
+  font-family: var(--font-display), serif;
+  font-size: 2rem;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  margin: 0;
+}
+
+.how-step p {
+  color: var(--muted);
+  font-size: 0.82rem;
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* Benefits */
+.benefit-grid {
+  display: grid;
+  gap: 1px;
+  grid-template-columns: repeat(3, 1fr);
+  background: var(--line);
+  border: 1px solid var(--line);
+}
+
+.benefit-card {
+  background: var(--paper);
+  display: grid;
+  gap: 0.7rem;
+  padding: clamp(1.5rem, 2.5vw, 2.25rem);
+}
+
+.benefit-card svg {
+  color: var(--ink);
+}
+
+.benefit-card h3 {
+  font-family: var(--font-display), serif;
+  font-size: 1.5rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  margin: 0;
+}
+
+.benefit-card p {
+  color: var(--muted);
+  font-size: 0.8rem;
+  line-height: 1.7;
+  margin: 0;
+}
+
+/* Social proof (dark) */
+.marketing-section-dark {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.marketing-section-dark .marketing-section-head h2 {
+  color: var(--paper);
+}
+
+.social-grid {
+  display: grid;
+  gap: clamp(2rem, 4vw, 3.5rem);
+  grid-template-columns: 1.4fr 1fr;
+}
+
+.testimonial-list,
+.stat-list {
+  display: grid;
+  gap: 1.25rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.testimonial-card {
+  border-left: 1px solid rgba(244, 240, 230, 0.25);
+  padding-left: 1.4rem;
+}
+
+.testimonial-card blockquote {
+  font-family: var(--font-display), serif;
+  font-size: clamp(1.3rem, 2.2vw, 1.8rem);
+  font-weight: 500;
+  letter-spacing: -0.02em;
+  line-height: 1.35;
+  margin: 0 0 1rem;
+}
+
+.testimonial-card p {
+  display: grid;
+  gap: 0.15rem;
+  margin: 0;
+}
+
+.testimonial-card strong {
+  font-size: 0.8rem;
+}
+
+.testimonial-card span {
+  color: #9eaaa1;
+  font-size: 0.72rem;
+}
+
+.stat-card {
+  border-top: 1px solid rgba(244, 240, 230, 0.25);
+  display: grid;
+  gap: 0.35rem;
+  padding-top: 1rem;
+}
+
+.stat-card strong {
+  color: var(--acid);
+  font-family: var(--font-display), serif;
+  font-size: 2.8rem;
+  font-weight: 500;
+  letter-spacing: -0.04em;
+  line-height: 1;
+}
+
+.stat-card span {
+  color: #aab5ad;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+
+/* FAQ */
+.faq-list {
+  border-top: 1px solid var(--line);
+  max-width: 46rem;
+}
+
+.faq-item {
+  border-bottom: 1px solid var(--line);
+}
+
+.faq-item summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  font-family: var(--font-display), serif;
+  font-size: clamp(1.25rem, 2.2vw, 1.7rem);
+  font-weight: 500;
+  justify-content: space-between;
+  letter-spacing: -0.02em;
+  list-style: none;
+  padding: 1.5rem 0;
+}
+
+.faq-item summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-mark {
+  flex: 0 0 auto;
+  height: 0.85rem;
+  margin-left: 1rem;
+  position: relative;
+  width: 0.85rem;
+}
+
+.faq-mark::before,
+.faq-mark::after {
+  background: var(--coral);
+  content: "";
+  inset: 0;
+  margin: auto;
+  position: absolute;
+}
+
+.faq-mark::before {
+  height: 100%;
+  width: 1px;
+  transition: transform 160ms ease;
+}
+
+.faq-mark::after {
+  height: 1px;
+  width: 100%;
+}
+
+.faq-item[open] .faq-mark::before {
+  transform: scaleY(0);
+}
+
+.faq-item p {
+  color: var(--muted);
+  font-size: 0.85rem;
+  line-height: 1.75;
+  margin: 0;
+  max-width: 40rem;
+  padding: 0 0 1.6rem;
+}
+
+/* Footer */
+.site-footer {
+  background: var(--ink);
+  color: var(--paper);
+  padding: clamp(4rem, 8vw, 7rem) clamp(1.25rem, 9vw, 9rem) 2.5rem;
+}
+
+.footer-cta {
+  align-items: center;
+  border-bottom: 1px solid rgba(244, 240, 230, 0.2);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2rem;
+  justify-content: space-between;
+  padding-bottom: clamp(2.5rem, 5vw, 4rem);
+}
+
+.footer-cta h2 {
+  font-family: var(--font-display), serif;
+  font-size: clamp(2.4rem, 5vw, 4.2rem);
+  font-weight: 500;
+  letter-spacing: -0.05em;
+  line-height: 0.95;
+  margin: 0;
+  max-width: 22ch;
+}
+
+.footer-cta h2 em {
+  color: var(--acid);
+  font-weight: 500;
+}
+
+.footer-meta {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 2rem;
+  justify-content: space-between;
+  padding-top: 2.5rem;
+}
+
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.5rem;
+}
+
+.footer-links a {
+  color: #aab5ad;
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.footer-links a:hover {
+  color: var(--acid);
+}
+
+.footer-copy {
+  color: #829087;
+  font-size: 0.7rem;
+  margin: 0;
+}
+
+/* Legal / long-form document pages */
+.legal-canvas {
+  margin: 0 auto;
+  max-width: 48rem;
+  padding: clamp(3rem, 8vw, 7rem) clamp(1.25rem, 6vw, 4rem) 5rem;
+}
+
+.legal-canvas .wordmark {
+  display: inline-block;
+  margin-bottom: 2.5rem;
+}
+
+.legal-canvas h1 {
+  font-family: var(--font-display), serif;
+  font-size: clamp(2.8rem, 6vw, 4.5rem);
+  font-weight: 500;
+  letter-spacing: -0.05em;
+  line-height: 0.9;
+  margin: 0 0 0.75rem;
+}
+
+.legal-updated {
+  color: var(--muted);
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  margin: 0 0 3rem;
+  text-transform: uppercase;
+}
+
+.legal-canvas h2 {
+  font-family: var(--font-display), serif;
+  font-size: 1.7rem;
+  font-weight: 500;
+  letter-spacing: -0.03em;
+  margin: 2.75rem 0 0.75rem;
+}
+
+.legal-canvas p,
+.legal-canvas li {
+  color: #3a433c;
+  font-size: 0.9rem;
+  line-height: 1.8;
+}
+
+.legal-canvas ul {
+  padding-left: 1.2rem;
+}
+
+.legal-back {
+  align-items: center;
+  color: var(--ink);
+  display: inline-flex;
+  font-size: 0.75rem;
+  font-weight: 700;
+  gap: 0.4rem;
+  margin-top: 3.5rem;
+}
+
+@media (max-width: 800px) {
+  .how-grid,
+  .benefit-grid,
+  .social-grid {
+    grid-template-columns: 1fr;
+  }
 }

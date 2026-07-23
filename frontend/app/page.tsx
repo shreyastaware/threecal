@@ -1,7 +1,13 @@
-import { ArrowRight, Clock3 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import Link from "next/link";
 
-import { RoleTicker } from "@/features/marketing/components/role-ticker";
+import { Benefits } from "@/features/marketing/components/benefits";
+import { Faq } from "@/features/marketing/components/faq";
+import { HowItWorks } from "@/features/marketing/components/how-it-works";
+import { LandingHero } from "@/features/marketing/components/landing-hero";
+import { SiteFooter } from "@/features/marketing/components/site-footer";
+import { SocialProof } from "@/features/marketing/components/social-proof";
+import { TrustedBy } from "@/features/marketing/components/trusted-by";
 
 export default function Home() {
   return (
@@ -15,34 +21,18 @@ export default function Home() {
             Sign in
           </Link>
           <Link href="/register" className="nav-cta">
-            Get your link <ArrowRight size={15} />
+            Start Free <ArrowRight size={15} />
           </Link>
         </div>
       </nav>
-      <section className="home-hero">
-         <p className="kicker kicker-dark">Paid appointment booking for</p>
-         <h1>
-           <RoleTicker />
-           <br />
-           <em>on your terms.</em>
-        </h1>
-        <p className="home-lede">
-          A thoughtful booking space for people whose time and expertise carry
-          real value.
-        </p>
-        <Link href="/register" className="hero-cta">
-          Start with threecal <ArrowRight size={18} />
-        </Link>
-      </section>
-      <aside className="home-ticket" aria-label="Example appointment">
-        <div>
-          <Clock3 size={18} />
-          <span>Next opening</span>
-        </div>
-        <strong>Thursday, 10:30</strong>
-        <small>45 minute advisory session</small>
-      </aside>
-      <p className="home-index">01 — MAKE TIME COUNT</p>
+
+      <LandingHero />
+      <TrustedBy />
+      <HowItWorks />
+      <Benefits />
+      <SocialProof />
+      <Faq />
+      <SiteFooter />
     </main>
   );
 }

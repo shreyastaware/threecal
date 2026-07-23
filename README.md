@@ -29,7 +29,6 @@ The backend is the source of truth for available capabilities. Calendar synchron
 threecal/
 ├── frontend/   Next.js App Router client and public booking experience
 ├── backend/    FastAPI API, domain services, SQLAlchemy models, migrations
-├── instructions/  Product and implementation phase notes
 └── MEMORY.md   Current feature inventory and missing-feature record
 ```
 
