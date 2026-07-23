@@ -1,24 +1,36 @@
 import { FAQ } from "@/features/marketing/content";
+import { Reveal } from "@/features/marketing/components/reveal";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 
-// Accordion-free FAQ using native <details> for zero-JS progressive disclosure.
+// FAQ powered by shadcn's Accordion (built on Base UI) for accessible,
+// animated open/close panels.
 export function Faq() {
   return (
     <section className="marketing-section" id="faq">
-      <header className="marketing-section-head">
+      <Reveal className="marketing-section-head">
         <span className="kicker kicker-dark">FAQ</span>
         <h2>Questions, answered</h2>
-      </header>
-      <div className="faq-list">
-        {FAQ.map((item) => (
-          <details key={item.question} className="faq-item">
-            <summary>
-              {item.question}
-              <span className="faq-mark" aria-hidden />
-            </summary>
-            <p>{item.answer}</p>
-          </details>
-        ))}
-      </div>
+      </Reveal>
+
+      <Reveal delay={0.1} className="faq-wrap">
+        <Accordion className="faq-list">
+          {FAQ.map((item) => (
+            <AccordionItem key={item.question} value={item.question} className="faq-item">
+              <AccordionTrigger className="faq-trigger">
+                {item.question}
+              </AccordionTrigger>
+              <AccordionContent className="faq-content">
+                <p>{item.answer}</p>
+              </AccordionContent>
+            </AccordionItem>
+          ))}
+        </Accordion>
+      </Reveal>
     </section>
   );
 }

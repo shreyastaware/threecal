@@ -17,6 +17,21 @@ export const TRUSTED_ROLES = [
   "Therapists",
 ] as const;
 
+export const GITHUB_URL = "https://github.com/shreyastaware/threecal";
+
+export interface SocialLink {
+  name: string;
+  href: string;
+  icon: "instagram" | "x" | "reddit" | "github";
+}
+
+export const SOCIAL_LINKS: SocialLink[] = [
+  { name: "Instagram", href: "https://www.instagram.com/threecaldotcom/", icon: "instagram" },
+  { name: "X (Twitter)", href: "https://x.com/threecaldotcom", icon: "x" },
+  { name: "Reddit", href: "https://www.reddit.com/r/threecal/", icon: "reddit" },
+  { name: "GitHub", href: GITHUB_URL, icon: "github" },
+];
+
 export interface HowItWorksStep {
   index: string;
   title: string;

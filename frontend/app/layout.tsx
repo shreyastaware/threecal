@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
-import { Cormorant_Garamond, Manrope } from "next/font/google";
+import { Cormorant_Garamond, Geist } from "next/font/google";
 
 import { AppProviders } from "@/components/providers/app-providers";
 
 import "./globals.css";
+import { cn } from "@/lib/utils";
 
 const display = Cormorant_Garamond({
   variable: "--font-display",
@@ -12,10 +13,7 @@ const display = Cormorant_Garamond({
   style: ["normal", "italic"],
 });
 
-const sans = Manrope({
-  variable: "--font-sans",
-  subsets: ["latin"],
-});
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: "Threecal - Sell your expertise",
@@ -28,7 +26,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className={`${display.variable} ${sans.variable}`}>
+    <html lang="en" className={cn(display.variable, "font-sans", geist.variable)}>
       <body>
         <AppProviders>{children}</AppProviders>
       </body>
