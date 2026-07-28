@@ -12,6 +12,7 @@ class EventTypeInput(BaseModel):
     price_minor: int = Field(default=0, ge=0)
     currency: str = Field(default="INR", min_length=3, max_length=3)
     is_active: bool = True
+    is_default: bool = False
 
 
 class EventTypeRead(EventTypeInput):

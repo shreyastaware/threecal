@@ -19,9 +19,78 @@ def test_profile_schedule_and_public_booking_page(client: TestClient) -> None:
     public_profile = client.get("/api/v1/public/avery")
     assert public_profile.status_code == 200
     assert public_profile.json()["host"]["full_name"] == "Avery Stone"
-    assert public_profile.json()["event_types"][0]["slug"] == "advisory"
+    assert public_profile.json()["default_event_type_slug"] is None
+    assert "advisory" in {
+        item["slug"] for item in public_profile.json()["event_types"]
+    }
 
     page = client.get("/api/v1/public/avery/advisory")
     assert page.status_code == 200
     assert page.json()["host"]["bio"] == "Strategy sessions"
     assert "email" not in page.json()["host"]
+
+
+def test_default_event_type_is_unique_and_public(client: TestClient) -> None:
+    client.post(
+        "/api/v1/auth/register",
+        json={
+            "full_name": "Avery Stone",
+            "email": "avery@example.com",
+            "password": "strong-password",
+        },
+    )
+    client.patch(
+        "/api/v1/users/me",
+        json={"username": "avery", "timezone": "UTC"},
+    )
+    event_types = client.get("/api/v1/event-types").json()
+    thirty_minute = next(
+        event for event in event_types if event["slug"] == "30-minute-call"
+    )
+    sixty_minute = next(
+        event for event in event_types if event["slug"] == "60-minute-call"
+    )
+
+    set_thirty_default = client.patch(
+        f"/api/v1/event-types/{thirty_minute['id']}",
+        json={
+            **{key: value for key, value in thirty_minute.items() if key != "id"},
+            "is_default": True,
+        },
+    )
+    assert set_thirty_default.status_code == 200
+    assert set_thirty_default.json()["is_default"] is True
+    assert (
+        client.get("/api/v1/public/avery").json()["default_event_type_slug"]
+        == "30-minute-call"
+    )
+
+    set_sixty_default = client.patch(
+        f"/api/v1/event-types/{sixty_minute['id']}",
+        json={
+            **{key: value for key, value in sixty_minute.items() if key != "id"},
+            "is_default": True,
+        },
+    )
+    assert set_sixty_default.status_code == 200
+    defaults = [
+        event
+        for event in client.get("/api/v1/event-types").json()
+        if event["is_default"]
+    ]
+    assert [event["slug"] for event in defaults] == ["60-minute-call"]
+    assert (
+        client.get("/api/v1/public/avery").json()["default_event_type_slug"]
+        == "60-minute-call"
+    )
+
+    hidden_default = client.patch(
+        f"/api/v1/event-types/{sixty_minute['id']}",
+        json={
+            **{key: value for key, value in sixty_minute.items() if key != "id"},
+            "is_active": False,
+            "is_default": True,
+        },
+    )
+    assert hidden_default.status_code == 422
+    assert hidden_default.json()["code"] == "default_event_type_inactive"

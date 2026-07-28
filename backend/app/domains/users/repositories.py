@@ -23,12 +23,7 @@ class UserRepository:
     def create(self, *, email: str, full_name: str, password_hash: str) -> User:
         user = User(email=email, full_name=full_name, password_hash=password_hash)
         self.db.add(user)
-        try:
-            self.db.commit()
-        except IntegrityError:
-            self.db.rollback()
-            raise
-        self.db.refresh(user)
+        self.db.flush()
         return user
 
     def update(self, user: User, values: dict[str, object]) -> User:

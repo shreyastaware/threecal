@@ -33,3 +33,4 @@ class BookingRead(BaseModel):
 class PublicProfileRead(BaseModel):
     host: PublicUserRead
     event_types: list[EventTypeRead]
+    default_event_type_slug: str | None

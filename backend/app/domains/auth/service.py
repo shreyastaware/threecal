@@ -5,13 +5,16 @@ from sqlalchemy.orm import Session
 from app.core.errors import AppError
 from app.core.security import hash_password, verify_password
 from app.domains.auth.schemas import LoginRequest, RegisterRequest
+from app.domains.event_types.service import EventTypeService
 from app.domains.users.models import User
 from app.domains.users.repositories import UserRepository
 
 
 class AuthService:
     def __init__(self, db: Session) -> None:
+        self.db = db
         self.users = UserRepository(db)
+        self.event_types = EventTypeService(db)
 
     def register(self, data: RegisterRequest) -> User:
         email = data.email.lower()
@@ -23,12 +26,17 @@ class AuthService:
             )
 
         try:
-            return self.users.create(
+            user = self.users.create(
                 email=email,
                 full_name=data.full_name,
                 password_hash=hash_password(data.password),
             )
+            self.event_types.create_starter_event_types(user.id)
+            self.db.commit()
+            self.db.refresh(user)
+            return user
         except IntegrityError as exc:
+            self.db.rollback()
             raise AppError(
                 status.HTTP_409_CONFLICT,
                 "email_already_registered",

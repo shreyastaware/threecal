@@ -2,7 +2,6 @@ from datetime import date
 from zoneinfo import ZoneInfoNotFoundError
 
 from fastapi import APIRouter, BackgroundTasks, Depends, Query, status
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -11,7 +10,7 @@ from app.domains.availability.schemas import SlotRead
 from app.domains.availability.service import AvailabilityService
 from app.domains.bookings.models import Booking
 from app.domains.bookings.schemas import BookingCreate, BookingRead, PublicProfileRead
-from app.domains.bookings.service import BookingService
+from app.domains.bookings.service import BookingService, PublicBookingService
 from app.domains.email.service import EmailService, get_email_provider
 from app.domains.event_types.models import EventType
 from app.domains.event_types.schemas import EventTypeRead
@@ -23,11 +22,7 @@ router = APIRouter(prefix="/public", tags=["public booking"])
 
 
 def resolve_page(db: Session, username: str, event_slug: str) -> tuple[User, EventType]:
-    user = db.scalar(select(User).where(User.username == username.lower(), User.is_active.is_(True)))
-    event = db.scalar(select(EventType).where(EventType.user_id == user.id, EventType.slug == event_slug, EventType.is_active.is_(True))) if user else None
-    if not user or not event:
-        raise AppError(status.HTTP_404_NOT_FOUND, "booking_page_not_found", "Booking page not found.")
-    return user, event
+    return PublicBookingService(db).resolve_page(username, event_slug)
 
 
 @router.get("/{username}", response_model=PublicProfileRead)
@@ -35,31 +30,11 @@ def get_public_profile(
     username: str,
     db: Session = Depends(get_db),
 ) -> PublicProfileRead:
-    user = db.scalar(
-        select(User).where(
-            User.username == username.lower(),
-            User.is_active.is_(True),
-        )
-    )
-    if not user:
-        raise AppError(
-            status.HTTP_404_NOT_FOUND,
-            "booking_profile_not_found",
-            "Booking profile not found.",
-        )
-    events = list(
-        db.scalars(
-            select(EventType)
-            .where(
-                EventType.user_id == user.id,
-                EventType.is_active.is_(True),
-            )
-            .order_by(EventType.created_at)
-        )
-    )
+    user, events, default_event = PublicBookingService(db).get_profile(username)
     return PublicProfileRead(
         host=PublicUserRead.model_validate(user),
         event_types=[EventTypeRead.model_validate(event) for event in events],
+        default_event_type_slug=default_event.slug if default_event else None,
     )
 
 

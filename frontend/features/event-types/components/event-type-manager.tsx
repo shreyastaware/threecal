@@ -2,7 +2,7 @@
 
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Edit3, LoaderCircle, Plus, X } from "lucide-react";
+import { Check, Edit3, LoaderCircle, Plus, Route, X } from "lucide-react";
 import Link from "next/link";
 import posthog from "posthog-js";
 import { useEffect, useState } from "react";
@@ -23,6 +23,7 @@ const emptyValues: EventTypeFormValues = {
   price_minor: 0,
   currency: "INR",
   is_active: true,
+  is_default: false,
 };
 
 function displayPrice(event: EventType) {
@@ -40,7 +41,10 @@ export function EventTypeManager() {
     onSuccess: (event) => {
       queryClient.setQueryData<EventType[]>(["event-types"], (current) => {
         if (!current) return [event];
-        return current.some((item) => item.id === event.id) ? current.map((item) => item.id === event.id ? event : item) : [...current, event];
+        const synchronized = event.is_default
+          ? current.map((item) => ({ ...item, is_default: false }))
+          : current;
+        return synchronized.some((item) => item.id === event.id) ? synchronized.map((item) => item.id === event.id ? event : item) : [...synchronized, event];
       });
       setEditing(null);
       reset(emptyValues);
@@ -77,6 +81,7 @@ export function EventTypeManager() {
             price_minor: event.price_minor,
             currency: event.currency,
             is_active: event.is_active,
+            is_default: event.is_default,
           });
         },
       },
@@ -99,6 +104,14 @@ export function EventTypeManager() {
           <label><span>Price (minor units)</span><input type="number" min="0" {...register("price_minor", { valueAsNumber: true })} /><small className="field-hint">INR 500.00 is entered as 50000.</small>{errors.price_minor && <small className="field-error">{errors.price_minor.message}</small>}</label>
           <label><span>Currency</span><input maxLength={3} {...register("currency")} />{errors.currency && <small className="field-error">{errors.currency.message}</small>}</label>
           <label className="checkbox-field"><input type="checkbox" {...register("is_active")} /><span>Visible on my booking page</span></label>
+          <label className="checkbox-field default-booking-field">
+            <input type="checkbox" {...register("is_default")} />
+            <span>
+              <strong>Use as default booking</strong>
+              <small>Your main public link will open this event directly. Selecting it replaces any current default.</small>
+              {errors.is_default && <small className="field-error">{errors.is_default.message}</small>}
+            </span>
+          </label>
           {save.isError && <StatusMessage>{getErrorMessage(save.error)}</StatusMessage>}
           <div className="form-actions">
             <button className="save-button" type="submit" disabled={save.isPending}>{save.isPending ? <LoaderCircle className="spin" size={16}/> : <Check size={16}/>} {save.isPending ? "Saving" : editing ? "Update event" : "Create event"}</button>
@@ -115,7 +128,7 @@ export function EventTypeManager() {
         {events.isError && <StatusMessage>{getErrorMessage(events.error)}</StatusMessage>}
         <div className="event-list">
           {events.data?.map((event) => <article className={!event.is_active ? "event-card inactive" : "event-card"} key={event.id}>
-            <div><span className="event-status">{event.is_active ? "Live" : "Hidden"}</span><h3>{event.title}</h3><p>{event.description || "No description yet."}</p></div>
+            <div><div className="event-status-row"><span className="event-status">{event.is_active ? "Live" : "Hidden"}</span>{event.is_default && <span className="event-default-status"><Route size={12}/> Default booking</span>}</div><h3>{event.title}</h3><p>{event.description || "No description yet."}</p></div>
             <div className="event-meta"><strong>{displayPrice(event)}</strong><small>{event.duration_minutes} min · every {event.slot_interval_minutes} min</small><div><button className="quiet-button" type="button" onClick={() => setEditing(event.id)}><Edit3 size={14}/> Edit</button>{user?.username && event.is_active && <Link className="text-link" href={`/${user.username}/${event.slug}`} target="_blank">Open link</Link>}</div></div>
           </article>)}
           {!events.isLoading && !events.data?.length && <div className="empty-state"><Plus size={18}/><p>Create your first event type above.</p></div>}

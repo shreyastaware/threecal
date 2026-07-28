@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
+from fastapi import status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -10,8 +11,53 @@ from app.domains.billing.repository import BillingRepository
 from app.domains.bookings.models import Booking, BookingStatus
 from app.domains.bookings.schemas import BookingCreate
 from app.domains.event_types.models import EventType
+from app.domains.event_types.repository import EventTypeRepository
 from app.domains.payments.repository import PaymentConfigRepository
 from app.domains.users.models import User
+from app.domains.users.repositories import UserRepository
+
+
+class PublicBookingService:
+    def __init__(self, db: Session) -> None:
+        self.users = UserRepository(db)
+        self.event_types = EventTypeRepository(db)
+
+    def get_profile(
+        self,
+        username: str,
+    ) -> tuple[User, list[EventType], EventType | None]:
+        user = self.users.get_by_username(username)
+        if not user or not user.is_active:
+            raise AppError(
+                status.HTTP_404_NOT_FOUND,
+                "booking_profile_not_found",
+                "Booking profile not found.",
+            )
+        events = self.event_types.list_active_for_user(user.id)
+        default_event = self.event_types.get_default_for_user(
+            user.id,
+            active_only=True,
+        )
+        return user, events, default_event
+
+    def resolve_page(
+        self,
+        username: str,
+        event_slug: str,
+    ) -> tuple[User, EventType]:
+        user = self.users.get_by_username(username)
+        event = (
+            self.event_types.get_active_by_slug(user.id, event_slug)
+            if user and user.is_active
+            else None
+        )
+        if not user or not user.is_active or not event:
+            raise AppError(
+                status.HTTP_404_NOT_FOUND,
+                "booking_page_not_found",
+                "Booking page not found.",
+            )
+        return user, event
 
 
 class BookingService:

@@ -20,6 +20,16 @@ def test_register_sets_cookie_and_authenticates_user(client: TestClient) -> None
     assert me_response.status_code == 200
     assert me_response.json()["full_name"] == "Avery Stone"
 
+    event_types = client.get("/api/v1/event-types")
+    assert event_types.status_code == 200
+    assert {
+        (event["title"], event["duration_minutes"], event["is_default"])
+        for event in event_types.json()
+    } == {
+        ("30-minute call", 30, False),
+        ("60-minute call", 60, False),
+    }
+
 
 def test_duplicate_registration_is_rejected(client: TestClient) -> None:
     client.post("/api/v1/auth/register", json=REGISTER_PAYLOAD)

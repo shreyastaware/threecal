@@ -9,9 +9,10 @@ import {
   MoveRight,
 } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import posthog from "posthog-js";
 
-import { bookingApi, type PublicEventType } from "@/features/booking/api";
+import { bookingApi, type PublicEventType, type PublicProfile as PublicProfileData } from "@/features/booking/api";
 import { StatusMessage } from "@/features/dashboard/components/status-message";
 import { getErrorMessage } from "@/lib/api/client";
 
@@ -32,10 +33,17 @@ function priceLabel(event: PublicEventType): string {
   }).format(event.price_minor / 100);
 }
 
-export function PublicProfile({ username }: { username: string }) {
+export function PublicProfile({
+  username,
+  initialProfile,
+}: {
+  username: string;
+  initialProfile?: PublicProfileData;
+}) {
   const profile = useQuery({
     queryKey: ["public-profile", username],
     queryFn: () => bookingApi.getProfile(username),
+    initialData: initialProfile,
   });
 
   if (profile.isLoading) {
@@ -54,6 +62,12 @@ export function PublicProfile({ username }: { username: string }) {
             : "This booking profile is unavailable."}
         </StatusMessage>
       </main>
+    );
+  }
+
+  if (profile.data.default_event_type_slug) {
+    redirect(
+      `/${encodeURIComponent(username)}/${encodeURIComponent(profile.data.default_event_type_slug)}`,
     );
   }
 

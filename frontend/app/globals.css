@@ -1206,6 +1206,8 @@ a {
 }
 
 .public-link-row span { flex: 1; overflow: hidden; text-overflow: ellipsis; }
+.public-link-row > small { color: var(--muted-ink); font-size: .62rem; }
+.public-link-primary { background: rgba(217, 255, 67, .16); border-left: 3px solid var(--acid); padding-inline: .8rem; }
 
 .event-manager { display: grid; gap: 1.5rem; }
 .event-form { display: grid; gap: 1rem; grid-template-columns: 1fr 1fr; }
@@ -1214,12 +1216,24 @@ a {
 .event-description textarea { min-height: 6rem; resize: vertical; }
 .checkbox-field { align-items: center; display: flex !important; gap: .6rem !important; }
 .checkbox-field input { accent-color: var(--coral); min-height: auto; width: auto; }
+.default-booking-field {
+  align-items: start;
+  background: rgba(217, 255, 67, .2);
+  border-left: 3px solid var(--acid);
+  padding: .85rem 1rem;
+}
+.default-booking-field input { margin-top: .2rem; }
+.default-booking-field > span { display: grid; gap: .2rem; }
+.default-booking-field strong { font-size: .72rem; }
+.default-booking-field small { color: var(--muted-ink); font-size: .65rem; line-height: 1.5; }
 .event-list { display: grid; gap: 0; }
 .event-card { align-items: start; border-top: 1px solid var(--line); display: flex; gap: 2rem; justify-content: space-between; padding: 1.2rem 0; }
 .event-card.inactive { opacity: .58; }
 .event-card h3 { font-family: var(--font-display); font-size: 1.7rem; font-weight: 500; margin: .45rem 0; }
 .event-card p { color: var(--muted-ink); font-size: .75rem; line-height: 1.6; margin: 0; max-width: 28rem; }
+.event-status-row { align-items: center; display: flex; flex-wrap: wrap; gap: .65rem; }
 .event-status { color: #2e7134; font-size: .62rem; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; }
+.event-default-status { align-items: center; background: var(--ink); color: var(--paper); display: inline-flex; font-size: .58rem; font-weight: 800; gap: .3rem; letter-spacing: .08em; padding: .25rem .45rem; text-transform: uppercase; }
 .event-meta { align-items: end; display: grid; gap: .35rem; justify-items: end; text-align: right; }
 .event-meta strong { font-family: var(--font-display); font-size: 1.35rem; font-weight: 500; }
 .event-meta small { color: var(--muted-ink); font-size: .68rem; }

@@ -18,6 +18,7 @@ export type PublicEventType = {
   price_minor: number;
   currency: string;
   is_active: boolean;
+  is_default: boolean;
 };
 
 export type PublicPage = {
@@ -28,6 +29,7 @@ export type PublicPage = {
 export type PublicProfile = {
   host: PublicHost;
   event_types: PublicEventType[];
+  default_event_type_slug: string | null;
 };
 
 export type Slot = { starts_at: string; ends_at: string };
