@@ -13,7 +13,7 @@ export type EventType = {
   is_default: boolean;
 };
 
-export type EventTypeInput = Omit<EventType, "id">;
+export type EventTypeInput = Omit<EventType, "id" | "slug">;
 
 export const eventTypesApi = {
   list: () => apiRequest<EventType[]>("/event-types"),

@@ -13,13 +13,13 @@ from app.domains.event_types.schemas import EventTypeInput
 STARTER_EVENT_TYPES: tuple[dict[str, object], ...] = (
     {
         "title": "30-minute call",
-        "slug": "30-minute-call",
+        "slug": "30min",
         "duration_minutes": 30,
         "slot_interval_minutes": 30,
     },
     {
         "title": "60-minute call",
-        "slug": "60-minute-call",
+        "slug": "60min",
         "duration_minutes": 60,
         "slot_interval_minutes": 60,
     },
@@ -36,7 +36,11 @@ class EventTypeService:
 
     def create(self, user_id: uuid.UUID, payload: EventTypeInput) -> EventType:
         self._validate_default(payload)
-        event_type = EventType(user_id=user_id, **payload.model_dump())
+        event_type = EventType(
+            user_id=user_id,
+            slug=self._next_duration_slug(user_id, payload.duration_minutes),
+            **payload.model_dump(),
+        )
         if event_type.is_default:
             self.repository.clear_default(user_id)
         self.repository.add(event_type)
@@ -57,6 +61,7 @@ class EventTypeService:
             )
 
         self._validate_default(payload)
+        duration_changed = event_type.duration_minutes != payload.duration_minutes
         if payload.is_default:
             self.repository.clear_default(
                 user_id,
@@ -64,6 +69,12 @@ class EventTypeService:
             )
         for key, value in payload.model_dump().items():
             setattr(event_type, key, value)
+        if duration_changed:
+            event_type.slug = self._next_duration_slug(
+                user_id,
+                payload.duration_minutes,
+                except_event_type_id=event_type.id,
+            )
         return self._commit(event_type)
 
     def create_starter_event_types(self, user_id: uuid.UUID) -> list[EventType]:
@@ -81,6 +92,25 @@ class EventTypeService:
                 "default_event_type_inactive",
                 "A default booking must be visible on the public booking page.",
             )
+
+    def _next_duration_slug(
+        self,
+        user_id: uuid.UUID,
+        duration_minutes: int,
+        *,
+        except_event_type_id: uuid.UUID | None = None,
+    ) -> str:
+        base_slug = f"{duration_minutes}min"
+        slug = base_slug
+        suffix = 2
+        while self.repository.slug_exists_for_user(
+            user_id,
+            slug,
+            except_event_type_id=except_event_type_id,
+        ):
+            slug = f"{base_slug}-{suffix}"
+            suffix += 1
+        return slug
 
     def _commit(self, event_type: EventType) -> EventType:
         try:

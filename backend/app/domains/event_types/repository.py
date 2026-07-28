@@ -56,6 +56,21 @@ class EventTypeRepository:
             )
         )
 
+    def slug_exists_for_user(
+        self,
+        user_id: uuid.UUID,
+        slug: str,
+        *,
+        except_event_type_id: uuid.UUID | None = None,
+    ) -> bool:
+        statement = select(EventType.id).where(
+            EventType.user_id == user_id,
+            EventType.slug == slug,
+        )
+        if except_event_type_id:
+            statement = statement.where(EventType.id != except_event_type_id)
+        return self.db.scalar(statement.limit(1)) is not None
+
     def get_default_for_user(
         self,
         user_id: uuid.UUID,

@@ -7,7 +7,7 @@ import { Check, Edit3, LoaderCircle, Plus, Route, X } from "lucide-react";
 import Link from "next/link";
 import posthog from "posthog-js";
 import { useEffect, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { StatusMessage } from "@/features/dashboard/components/status-message";
@@ -17,15 +17,44 @@ import { getErrorMessage } from "@/lib/api/client";
 
 const emptyValues: EventTypeFormValues = {
   title: "",
-  slug: "",
   description: "",
-  duration_minutes: 30,
+  duration_option: "30",
+  custom_duration_minutes: undefined,
   slot_interval_minutes: 30,
-  price_minor: 0,
-  currency: "INR",
+  price: 0,
   is_active: true,
   is_default: false,
 };
+
+function getDurationOption(
+  durationMinutes: number,
+): EventTypeFormValues["duration_option"] {
+  if (
+    durationMinutes === 15
+    || durationMinutes === 30
+    || durationMinutes === 45
+    || durationMinutes === 60
+  ) {
+    return String(durationMinutes) as EventTypeFormValues["duration_option"];
+  }
+  return "custom";
+}
+
+function eventToFormValues(event: EventType): EventTypeFormValues {
+  const durationOption = getDurationOption(event.duration_minutes);
+  return {
+    title: event.title,
+    description: event.description ?? "",
+    duration_option: durationOption,
+    custom_duration_minutes: durationOption === "custom"
+      ? event.duration_minutes
+      : undefined,
+    slot_interval_minutes: event.slot_interval_minutes,
+    price: event.price_minor / 100,
+    is_active: event.is_active,
+    is_default: event.is_default,
+  };
+}
 
 function displayPrice(event: EventType) {
   if (!event.price_minor) return "Free";
@@ -57,13 +86,15 @@ export function EventTypeManager() {
     register,
     reset,
     handleSubmit,
+    control,
     formState: { errors },
   } = useForm<EventTypeFormValues>({ resolver: zodResolver(eventTypeSchema), defaultValues: emptyValues });
+  const selectedDuration = useWatch({ control, name: "duration_option" });
 
   useEffect(() => {
     const event = events.data?.find((item) => item.id === editing);
     if (event) {
-      reset({ ...event, description: event.description ?? "" });
+      reset(eventToFormValues(event));
     } else if (!editing) {
       reset(emptyValues);
     }
@@ -71,10 +102,25 @@ export function EventTypeManager() {
 
   const onSubmit = handleSubmit((values) => {
     const isNewEventType = !editing;
+    const {
+      custom_duration_minutes: customDurationMinutes,
+      duration_option: durationOption,
+      price,
+      ...eventTypeValues
+    } = values;
+    const durationMinutes = durationOption === "custom"
+      ? customDurationMinutes!
+      : Number(durationOption);
     save.mutate(
       {
         id: editing ?? undefined,
-        input: { ...values, description: values.description || null, currency: values.currency.toUpperCase() },
+        input: {
+          ...eventTypeValues,
+          description: values.description || null,
+          duration_minutes: durationMinutes,
+          price_minor: Math.round(price * 100),
+          currency: "INR",
+        },
       },
       {
         onSuccess: (event) => {
@@ -151,12 +197,38 @@ export function EventTypeManager() {
 
               <form className="event-form event-dialog-form" onSubmit={onSubmit} noValidate>
                 <label><span>Title</span><input {...register("title")} placeholder="Advisory session" />{errors.title && <small className="field-error">{errors.title.message}</small>}</label>
-                <label><span>Slug</span><input autoCapitalize="none" {...register("slug")} placeholder="advisory-session" />{errors.slug && <small className="field-error">{errors.slug.message}</small>}</label>
+                <label>
+                  <span>Duration</span>
+                  <select {...register("duration_option")}>
+                    <option value="15">15 min</option>
+                    <option value="30">30 min</option>
+                    <option value="45">45 min</option>
+                    <option value="60">60 min</option>
+                    <option value="custom">Custom</option>
+                  </select>
+                  <small className="field-hint">The booking URL is generated automatically from the duration, for example /30min.</small>
+                </label>
+                {selectedDuration === "custom" && (
+                  <label>
+                    <span>Custom duration (minutes)</span>
+                    <input
+                      type="number"
+                      inputMode="numeric"
+                      min="5"
+                      max="480"
+                      step="1"
+                      placeholder="90"
+                      {...register("custom_duration_minutes", {
+                        setValueAs: (value) => value === "" ? undefined : Number(value),
+                      })}
+                    />
+                    {errors.custom_duration_minutes && <small className="field-error">{errors.custom_duration_minutes.message}</small>}
+                  </label>
+                )}
                 <label className="event-description"><span>Description</span><textarea {...register("description")} placeholder="What should invitees expect?" />{errors.description && <small className="field-error">{errors.description.message}</small>}</label>
-                <label><span>Duration (minutes)</span><input type="number" min="5" max="480" {...register("duration_minutes", { valueAsNumber: true })} />{errors.duration_minutes && <small className="field-error">{errors.duration_minutes.message}</small>}</label>
-                <label><span>Slot interval (minutes)</span><input type="number" min="5" max="480" {...register("slot_interval_minutes", { valueAsNumber: true })} />{errors.slot_interval_minutes && <small className="field-error">{errors.slot_interval_minutes.message}</small>}</label>
-                <label><span>Price (minor units)</span><input type="number" min="0" {...register("price_minor", { valueAsNumber: true })} /><small className="field-hint">INR 500.00 is entered as 50000.</small>{errors.price_minor && <small className="field-error">{errors.price_minor.message}</small>}</label>
-                <label><span>Currency</span><input maxLength={3} {...register("currency")} />{errors.currency && <small className="field-error">{errors.currency.message}</small>}</label>
+                <label><span>Slot Time (minutes)</span><input type="number" min="5" max="480" {...register("slot_interval_minutes", { valueAsNumber: true })} />{errors.slot_interval_minutes && <small className="field-error">{errors.slot_interval_minutes.message}</small>}</label>
+                <label><span>Price (INR)</span><input type="number" inputMode="numeric" min="0" step="1" placeholder="500" {...register("price", { valueAsNumber: true })} /><small className="field-hint">Enter a whole-number amount with no decimal places.</small>{errors.price && <small className="field-error">{errors.price.message}</small>}</label>
+                <label className="event-readonly-field"><span>Currency</span><input aria-readonly="true" readOnly value="INR" /><small className="field-hint">Event type prices are currently charged in INR.</small></label>
                 <label className="checkbox-field"><input type="checkbox" {...register("is_active")} /><span>Visible on my booking page</span></label>
                 <label className="checkbox-field default-booking-field">
                   <input type="checkbox" {...register("is_default")} />

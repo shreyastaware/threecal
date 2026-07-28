@@ -13,21 +13,68 @@ def test_profile_schedule_and_public_booking_page(client: TestClient) -> None:
     assert schedule.status_code == 200
     assert schedule.json()[0]["breaks"]
 
-    event = client.post("/api/v1/event-types", json={"title": "Advisory call", "slug": "advisory", "duration_minutes": 30, "slot_interval_minutes": 30, "price_minor": 50000, "currency": "INR"})
+    event = client.post("/api/v1/event-types", json={"title": "Advisory call", "duration_minutes": 30, "slot_interval_minutes": 30, "price_minor": 50000, "currency": "INR"})
     assert event.status_code == 201
+    assert event.json()["slug"] == "30min-2"
 
     public_profile = client.get("/api/v1/public/avery")
     assert public_profile.status_code == 200
     assert public_profile.json()["host"]["full_name"] == "Avery Stone"
     assert public_profile.json()["default_event_type_slug"] is None
-    assert "advisory" in {
+    assert "30min-2" in {
         item["slug"] for item in public_profile.json()["event_types"]
     }
 
-    page = client.get("/api/v1/public/avery/advisory")
+    page = client.get("/api/v1/public/avery/30min-2")
     assert page.status_code == 200
     assert page.json()["host"]["bio"] == "Strategy sessions"
     assert "email" not in page.json()["host"]
+
+
+def test_event_type_slugs_are_generated_from_duration(client: TestClient) -> None:
+    client.post(
+        "/api/v1/auth/register",
+        json={
+            "full_name": "Avery Stone",
+            "email": "avery@example.com",
+            "password": "strong-password",
+        },
+    )
+    first = client.post(
+        "/api/v1/event-types",
+        json={
+            "title": "First consultation",
+            "duration_minutes": 45,
+            "slot_interval_minutes": 30,
+        },
+    )
+    second = client.post(
+        "/api/v1/event-types",
+        json={
+            "title": "Second consultation",
+            "duration_minutes": 45,
+            "slot_interval_minutes": 30,
+        },
+    )
+
+    assert first.status_code == 201
+    assert first.json()["slug"] == "45min"
+    assert first.json()["currency"] == "INR"
+    assert second.status_code == 201
+    assert second.json()["slug"] == "45min-2"
+
+    second_payload = {
+        key: value
+        for key, value in second.json().items()
+        if key not in {"id", "slug"}
+    }
+    second_payload["duration_minutes"] = 75
+    updated = client.patch(
+        f"/api/v1/event-types/{second.json()['id']}",
+        json=second_payload,
+    )
+    assert updated.status_code == 200
+    assert updated.json()["slug"] == "75min"
 
 
 def test_default_event_type_is_unique_and_public(client: TestClient) -> None:
@@ -45,10 +92,10 @@ def test_default_event_type_is_unique_and_public(client: TestClient) -> None:
     )
     event_types = client.get("/api/v1/event-types").json()
     thirty_minute = next(
-        event for event in event_types if event["slug"] == "30-minute-call"
+        event for event in event_types if event["slug"] == "30min"
     )
     sixty_minute = next(
-        event for event in event_types if event["slug"] == "60-minute-call"
+        event for event in event_types if event["slug"] == "60min"
     )
 
     set_thirty_default = client.patch(
@@ -62,7 +109,7 @@ def test_default_event_type_is_unique_and_public(client: TestClient) -> None:
     assert set_thirty_default.json()["is_default"] is True
     assert (
         client.get("/api/v1/public/avery").json()["default_event_type_slug"]
-        == "30-minute-call"
+        == "30min"
     )
 
     set_sixty_default = client.patch(
@@ -78,10 +125,10 @@ def test_default_event_type_is_unique_and_public(client: TestClient) -> None:
         for event in client.get("/api/v1/event-types").json()
         if event["is_default"]
     ]
-    assert [event["slug"] for event in defaults] == ["60-minute-call"]
+    assert [event["slug"] for event in defaults] == ["60min"]
     assert (
         client.get("/api/v1/public/avery").json()["default_event_type_slug"]
-        == "60-minute-call"
+        == "60min"
     )
 
     hidden_default = client.patch(

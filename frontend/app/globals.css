@@ -67,7 +67,8 @@ body {
 
 button,
 input,
-textarea {
+textarea,
+select {
   font: inherit;
 }
 
@@ -1068,6 +1069,7 @@ a {
 .profile-form select,
 .event-form input,
 .event-form textarea,
+.event-form select,
 .credential-form input,
 .billing-complete-form input,
 .booking-form input,
@@ -1086,6 +1088,7 @@ a {
 .profile-form select:focus,
 .event-form input:focus,
 .event-form textarea:focus,
+.event-form select:focus,
 .credential-form input:focus,
 .billing-complete-form input:focus,
 .booking-form input:focus,
@@ -1252,6 +1255,11 @@ a {
   bottom: 0;
   position: sticky;
   z-index: 2;
+}
+.event-readonly-field input {
+  background: rgba(24, 31, 26, .06);
+  color: var(--muted-ink);
+  cursor: not-allowed;
 }
 .event-description, .checkbox-field { grid-column: 1 / -1; }
 .event-description textarea { min-height: 6rem; resize: vertical; }
