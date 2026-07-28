@@ -7,14 +7,13 @@ import posthog from "posthog-js";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 
+import { TimezoneOptions } from "@/components/timezone-options";
 import { StatusMessage } from "@/features/dashboard/components/status-message";
 import { bookingApi, type Booking, type PublicPage } from "@/features/booking/api";
 import { bookingSchema, type BookingFormValues } from "@/features/booking/schemas";
 import { ProviderCheckout } from "@/features/booking/components/provider-checkout";
 import { paymentsApi, type Checkout } from "@/features/payments/api";
 import { getErrorMessage } from "@/lib/api/client";
-
-const TIMEZONES = ["UTC", "Asia/Kolkata", "Asia/Singapore", "Australia/Sydney", "Europe/London", "Europe/Paris", "America/New_York", "America/Chicago", "America/Los_Angeles"];
 
 function formatSlot(value: string, timezone: string) {
   return new Intl.DateTimeFormat(undefined, { weekday: "long", month: "long", day: "numeric", hour: "numeric", minute: "2-digit", timeZone: timezone }).format(new Date(value));
@@ -86,7 +85,7 @@ export function BookingForm({
       <form className="booking-form" onSubmit={onSubmit} noValidate>
         <label><span>Your name</span><input autoComplete="name" {...register("invitee_name")} />{errors.invitee_name && <small className="field-error">{errors.invitee_name.message}</small>}</label>
         <label><span>Email address</span><input type="email" autoComplete="email" {...register("invitee_email")} />{errors.invitee_email && <small className="field-error">{errors.invitee_email.message}</small>}</label>
-        <label><span>Your timezone</span><select {...register("invitee_timezone")}><option value={timezone}>{timezone}</option>{TIMEZONES.filter((item) => item !== timezone).map((item) => <option key={item} value={item}>{item}</option>)}</select>{errors.invitee_timezone && <small className="field-error">{errors.invitee_timezone.message}</small>}</label>
+        <label><span>Your timezone</span><select {...register("invitee_timezone")}><TimezoneOptions currentTimezone={timezone} /></select>{errors.invitee_timezone && <small className="field-error">{errors.invitee_timezone.message}</small>}</label>
         <label><span>Notes <small>(optional)</small></span><textarea {...register("notes")} placeholder="Anything useful to know?" />{errors.notes && <small className="field-error">{errors.notes.message}</small>}</label>
         {create.isError && <StatusMessage>{getErrorMessage(create.error)}</StatusMessage>}
         <button className="save-button" type="submit" disabled={isSubmitting || create.isPending}>{create.isPending ? <LoaderCircle className="spin" size={16}/> : <Check size={16}/>} {create.isPending ? "Reserving" : page.event_type.price_minor ? "Reserve and pay" : "Confirm appointment"}</button>

@@ -64,7 +64,7 @@ def test_avatar_is_processed_uploaded_and_saved(client: TestClient) -> None:
 
     assert response.status_code == 200
     avatar_url = response.json()["avatar_url"]
-    assert avatar_url.startswith(f"{storage.public_base_url}/profile-images/")
+    assert avatar_url.startswith(f"{storage.public_base_url}/profile-pictures/")
     key = avatar_url.removeprefix(f"{storage.public_base_url}/")
     stored_content, stored_content_type = storage.objects[key]
     assert stored_content_type == "image/webp"

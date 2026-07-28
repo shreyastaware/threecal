@@ -1,7 +1,9 @@
 "use client";
 
+import { Menu } from "@base-ui/react/menu";
 import {
   CalendarDays,
+  ChevronUp,
   CreditCard,
   LayoutDashboard,
   Link2,
@@ -66,15 +68,42 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="workspace-nav-footer">
-          <Link
-            className={pathname === "/dashboard/profile" ? "selected" : ""}
-            href="/dashboard/profile"
-          >
-            <UserRound /> <span>{user.full_name}</span>
-          </Link>
-          <button onClick={signOut} type="button">
-            <LogOut /> Sign out
-          </button>
+          <Menu.Root>
+            <Menu.Trigger
+              className="workspace-user-trigger"
+              type="button"
+            >
+              <UserRound />
+              <span>{user.full_name}</span>
+              <ChevronUp className="workspace-user-chevron" />
+            </Menu.Trigger>
+            <Menu.Portal>
+              <Menu.Positioner
+                align="start"
+                className="workspace-user-menu-positioner"
+                side="top"
+                sideOffset={8}
+              >
+                <Menu.Popup className="workspace-user-menu">
+                  <Menu.LinkItem
+                    className="workspace-user-menu-item"
+                    closeOnClick
+                    render={<Link href="/dashboard/profile" />}
+                  >
+                    <UserRound /> Profile
+                  </Menu.LinkItem>
+                  <Menu.Item
+                    className="workspace-user-menu-item workspace-user-menu-signout"
+                    nativeButton
+                    onClick={signOut}
+                    render={<button type="button" />}
+                  >
+                    <LogOut /> Sign out
+                  </Menu.Item>
+                </Menu.Popup>
+              </Menu.Positioner>
+            </Menu.Portal>
+          </Menu.Root>
         </div>
       </aside>
       <div className="workspace-content">{children}</div>

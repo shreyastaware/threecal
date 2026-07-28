@@ -19,6 +19,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 import { CURRENT_USER_KEY } from "@/components/providers/auth-provider";
+import { TimezoneOptions } from "@/components/timezone-options";
 import { StatusMessage } from "@/features/dashboard/components/status-message";
 import type { User } from "@/features/auth/types/auth";
 import {
@@ -28,19 +29,7 @@ import {
 import { ProfileImageField } from "@/features/scheduling/components/profile-image-field";
 import { profileSchema } from "@/features/scheduling/schemas";
 import { getErrorMessage } from "@/lib/api/client";
-
-const TIMEZONES = [
-  "UTC",
-  "Asia/Kolkata",
-  "Asia/Singapore",
-  "Australia/Sydney",
-  "Europe/London",
-  "Europe/Paris",
-  "America/New_York",
-  "America/Chicago",
-  "America/Denver",
-  "America/Los_Angeles",
-];
+import { getTimezoneOptionLabel } from "@/lib/timezones";
 
 type ProfileField = keyof Pick<
   User,
@@ -85,13 +74,6 @@ const fieldCopy: Record<
     icon: AtSign,
     inputMode: "input",
   },
-  timezone: {
-    label: "Timezone",
-    title: "Edit your timezone",
-    description: "Your availability and booking times are anchored here.",
-    icon: Clock3,
-    inputMode: "select",
-  },
   bio: {
     label: "Short bio",
     title: "Edit your short bio",
@@ -99,6 +81,13 @@ const fieldCopy: Record<
     placeholder: "Tell invitees a little about your work.",
     icon: Pencil,
     inputMode: "textarea",
+  },  
+  timezone: {
+    label: "Timezone",
+    title: "Edit your timezone",
+    description: "Your availability and booking times are anchored here.",
+    icon: Clock3,
+    inputMode: "select",
   },
 };
 
@@ -116,6 +105,7 @@ function displayValue(user: User, field: ProfileField): string {
     return field === "username" ? "Choose a booking URL" : "Not added yet";
   }
   if (field === "username") return `threecal.com/${value}`;
+  if (field === "timezone") return getTimezoneOptionLabel(value);
   return value;
 }
 
@@ -238,7 +228,15 @@ export function ProfileDetails({ user }: { user: User }) {
                   <Icon aria-hidden="true" size={17} />
                   <div>
                     <span>{copy.label}</span>
-                    <p className={field === "bio" ? "profile-bio-value" : ""}>
+                    <p
+                      className={
+                        field === "bio"
+                          ? "profile-bio-value"
+                          : field === "timezone"
+                            ? "profile-timezone-value"
+                            : ""
+                      }
+                    >
                       {displayValue(user, field)}
                     </p>
                   </div>
@@ -333,14 +331,7 @@ export function ProfileDetails({ user }: { user: User }) {
                   )}
                   {activeCopy?.inputMode === "select" && (
                     <select {...register("value")}>
-                      {!TIMEZONES.includes(user.timezone) && (
-                        <option value={user.timezone}>{user.timezone}</option>
-                      )}
-                      {TIMEZONES.map((timezone) => (
-                        <option key={timezone} value={timezone}>
-                          {timezone}
-                        </option>
-                      ))}
+                      <TimezoneOptions currentTimezone={user.timezone} />
                     </select>
                   )}
                   {errors.value && (

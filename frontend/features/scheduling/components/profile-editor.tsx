@@ -9,23 +9,11 @@ import { useForm } from "react-hook-form";
 
 import { StatusMessage } from "@/features/dashboard/components/status-message";
 import { CURRENT_USER_KEY } from "@/components/providers/auth-provider";
+import { TimezoneOptions } from "@/components/timezone-options";
 import type { User } from "@/features/auth/types/auth";
 import { schedulingApi } from "@/features/scheduling/api";
 import { profileSchema, type ProfileFormValues } from "@/features/scheduling/schemas";
 import { getErrorMessage } from "@/lib/api/client";
-
-const TIMEZONES = [
-  "UTC",
-  "Asia/Kolkata",
-  "Asia/Singapore",
-  "Australia/Sydney",
-  "Europe/London",
-  "Europe/Paris",
-  "America/New_York",
-  "America/Chicago",
-  "America/Denver",
-  "America/Los_Angeles",
-];
 
 export function ProfileEditor({ user, onSaved }: { user: User; onSaved?: (updated: User) => void }) {
   const queryClient = useQueryClient();
@@ -102,11 +90,15 @@ export function ProfileEditor({ user, onSaved }: { user: User; onSaved?: (update
           </div>
           {errors.username && <small className="field-error">{errors.username.message}</small>}
         </label>
+        <label className="bio-field">
+          <span>Short bio</span>
+          <textarea {...register("bio")} />
+          {errors.bio && <small className="field-error">{errors.bio.message}</small>}
+        </label>        
         <label>
           <span>Timezone</span>
           <select {...register("timezone")}>
-            {!TIMEZONES.includes(user.timezone) && <option value={user.timezone}>{user.timezone}</option>}
-            {TIMEZONES.map((timezone) => <option key={timezone} value={timezone}>{timezone}</option>)}
+            <TimezoneOptions currentTimezone={user.timezone} />
           </select>
           {errors.timezone && <small className="field-error">{errors.timezone.message}</small>}
         </label>
@@ -114,11 +106,6 @@ export function ProfileEditor({ user, onSaved }: { user: User; onSaved?: (update
           <span>Profile image URL</span>
           <input type="url" placeholder="https://..." {...register("avatar_url")} />
           {errors.avatar_url && <small className="field-error">{errors.avatar_url.message}</small>}
-        </label>
-        <label className="bio-field">
-          <span>Short bio</span>
-          <textarea {...register("bio")} />
-          {errors.bio && <small className="field-error">{errors.bio.message}</small>}
         </label>
         {save.isError && <StatusMessage>{getErrorMessage(save.error)}</StatusMessage>}
         {save.isSuccess && !isDirty && <StatusMessage tone="success">Profile saved.</StatusMessage>}

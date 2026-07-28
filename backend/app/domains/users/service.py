@@ -8,6 +8,7 @@ from app.domains.users.storage import ObjectStorage, ObjectStorageError
 
 
 logger = logging.getLogger(__name__)
+PROFILE_PICTURES_PREFIX = "profile-pictures"
 
 
 class UserProfileService:
@@ -38,7 +39,8 @@ class UserAvatarService:
     ) -> User:
         processed = self.processor.process(content, declared_content_type)
         object_key = (
-            f"profile-images/{user.id}/{uuid.uuid4().hex}.{processed.extension}"
+            f"{PROFILE_PICTURES_PREFIX}/{user.id}/"
+            f"{uuid.uuid4().hex}.{processed.extension}"
         )
         previous_avatar_url = user.avatar_url
         public_url = self.storage.upload(
