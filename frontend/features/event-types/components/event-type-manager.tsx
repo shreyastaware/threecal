@@ -1,5 +1,6 @@
 "use client";
 
+import { Dialog } from "@base-ui/react/dialog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, Edit3, LoaderCircle, Plus, Route, X } from "lucide-react";
@@ -36,6 +37,7 @@ export function EventTypeManager() {
   const queryClient = useQueryClient();
   const events = useQuery({ queryKey: ["event-types"], queryFn: eventTypesApi.list });
   const [editing, setEditing] = useState<string | null>(null);
+  const [editorOpen, setEditorOpen] = useState(false);
   const save = useMutation({
     mutationFn: ({ id, input }: { id?: string; input: EventTypeInput }) => id ? eventTypesApi.update(id, input) : eventTypesApi.create(input),
     onSuccess: (event) => {
@@ -47,6 +49,7 @@ export function EventTypeManager() {
         return synchronized.some((item) => item.id === event.id) ? synchronized.map((item) => item.id === event.id ? event : item) : [...synchronized, event];
       });
       setEditing(null);
+      setEditorOpen(false);
       reset(emptyValues);
     },
   });
@@ -88,52 +91,91 @@ export function EventTypeManager() {
     );
   });
 
+  function openCreateDialog() {
+    setEditing(null);
+    reset(emptyValues);
+    save.reset();
+    setEditorOpen(true);
+  }
+
+  function openEditDialog(eventId: string) {
+    setEditing(eventId);
+    save.reset();
+    setEditorOpen(true);
+  }
+
+  function handleEditorOpenChange(open: boolean) {
+    if (save.isPending) return;
+    setEditorOpen(open);
+    if (!open) {
+      setEditing(null);
+      reset(emptyValues);
+      save.reset();
+    }
+  }
+
   return (
     <div className="event-manager">
-      <section className="workspace-panel event-form-panel">
-        <div className="panel-heading">
-          <div><span>{editing ? "Edit event type" : "Create an event type"}</span><h2>{editing ? "Refine the offer" : "Give time a shape"}</h2></div>
-          <p>Each event type gets its own public booking link and availability rules.</p>
-        </div>
-        <form className="event-form" onSubmit={onSubmit} noValidate>
-          <label><span>Title</span><input {...register("title")} placeholder="Advisory session" />{errors.title && <small className="field-error">{errors.title.message}</small>}</label>
-          <label><span>Slug</span><input autoCapitalize="none" {...register("slug")} placeholder="advisory-session" />{errors.slug && <small className="field-error">{errors.slug.message}</small>}</label>
-          <label className="event-description"><span>Description</span><textarea {...register("description")} placeholder="What should invitees expect?" />{errors.description && <small className="field-error">{errors.description.message}</small>}</label>
-          <label><span>Duration (minutes)</span><input type="number" min="5" max="480" {...register("duration_minutes", { valueAsNumber: true })} />{errors.duration_minutes && <small className="field-error">{errors.duration_minutes.message}</small>}</label>
-          <label><span>Slot interval (minutes)</span><input type="number" min="5" max="480" {...register("slot_interval_minutes", { valueAsNumber: true })} />{errors.slot_interval_minutes && <small className="field-error">{errors.slot_interval_minutes.message}</small>}</label>
-          <label><span>Price (minor units)</span><input type="number" min="0" {...register("price_minor", { valueAsNumber: true })} /><small className="field-hint">INR 500.00 is entered as 50000.</small>{errors.price_minor && <small className="field-error">{errors.price_minor.message}</small>}</label>
-          <label><span>Currency</span><input maxLength={3} {...register("currency")} />{errors.currency && <small className="field-error">{errors.currency.message}</small>}</label>
-          <label className="checkbox-field"><input type="checkbox" {...register("is_active")} /><span>Visible on my booking page</span></label>
-          <label className="checkbox-field default-booking-field">
-            <input type="checkbox" {...register("is_default")} />
-            <span>
-              <strong>Use as default booking</strong>
-              <small>Your main public link will open this event directly. Selecting it replaces any current default.</small>
-              {errors.is_default && <small className="field-error">{errors.is_default.message}</small>}
-            </span>
-          </label>
-          {save.isError && <StatusMessage>{getErrorMessage(save.error)}</StatusMessage>}
-          <div className="form-actions">
-            <button className="save-button" type="submit" disabled={save.isPending}>{save.isPending ? <LoaderCircle className="spin" size={16}/> : <Check size={16}/>} {save.isPending ? "Saving" : editing ? "Update event" : "Create event"}</button>
-            {editing && <button className="quiet-button" type="button" onClick={() => setEditing(null)}><X size={15}/> Cancel</button>}
-          </div>
-        </form>
-      </section>
       <section className="workspace-panel event-list-panel">
-        <div className="panel-heading">
+        <div className="panel-heading event-list-heading">
           <div><span>Your offers</span><h2>Event types</h2></div>
           <p>{events.data?.length ?? 0} configured event types.</p>
+          <button className="event-create-button" type="button" onClick={openCreateDialog}><Plus aria-hidden="true" size={16}/> Create</button>
         </div>
         {events.isLoading && <LoaderCircle className="spin" />}
         {events.isError && <StatusMessage>{getErrorMessage(events.error)}</StatusMessage>}
         <div className="event-list">
           {events.data?.map((event) => <article className={!event.is_active ? "event-card inactive" : "event-card"} key={event.id}>
             <div><div className="event-status-row"><span className="event-status">{event.is_active ? "Live" : "Hidden"}</span>{event.is_default && <span className="event-default-status"><Route size={12}/> Default booking</span>}</div><h3>{event.title}</h3><p>{event.description || "No description yet."}</p></div>
-            <div className="event-meta"><strong>{displayPrice(event)}</strong><small>{event.duration_minutes} min · every {event.slot_interval_minutes} min</small><div><button className="quiet-button" type="button" onClick={() => setEditing(event.id)}><Edit3 size={14}/> Edit</button>{user?.username && event.is_active && <Link className="text-link" href={`/${user.username}/${event.slug}`} target="_blank">Open link</Link>}</div></div>
+            <div className="event-meta"><strong>{displayPrice(event)}</strong><small>{event.duration_minutes} min · every {event.slot_interval_minutes} min</small><div><button className="quiet-button" type="button" onClick={() => openEditDialog(event.id)}><Edit3 size={14}/> Edit</button>{user?.username && event.is_active && <Link className="text-link" href={`/${user.username}/${event.slug}`} target="_blank">Open link</Link>}</div></div>
           </article>)}
-          {!events.isLoading && !events.data?.length && <div className="empty-state"><Plus size={18}/><p>Create your first event type above.</p></div>}
+          {!events.isLoading && !events.data?.length && <div className="empty-state"><Plus size={18}/><p>Create your first event type to start accepting bookings.</p></div>}
         </div>
       </section>
+
+      <Dialog.Root onOpenChange={handleEditorOpenChange} open={editorOpen}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="profile-dialog-backdrop" />
+          <Dialog.Viewport className="profile-dialog-viewport event-dialog-viewport">
+            <Dialog.Popup className="profile-dialog-popup event-dialog-popup">
+              <div className="profile-dialog-header">
+                <div>
+                  <p className="kicker kicker-dark">{editing ? "Edit event type" : "New event type"}</p>
+                  <Dialog.Title>{editing ? "Refine the offer" : "Create an event type"}</Dialog.Title>
+                  <Dialog.Description>Each event type gets its own public booking link and availability rules.</Dialog.Description>
+                </div>
+                <Dialog.Close aria-label="Close event type dialog" className="profile-dialog-close" disabled={save.isPending}>
+                  <X size={18} />
+                </Dialog.Close>
+              </div>
+
+              <form className="event-form event-dialog-form" onSubmit={onSubmit} noValidate>
+                <label><span>Title</span><input {...register("title")} placeholder="Advisory session" />{errors.title && <small className="field-error">{errors.title.message}</small>}</label>
+                <label><span>Slug</span><input autoCapitalize="none" {...register("slug")} placeholder="advisory-session" />{errors.slug && <small className="field-error">{errors.slug.message}</small>}</label>
+                <label className="event-description"><span>Description</span><textarea {...register("description")} placeholder="What should invitees expect?" />{errors.description && <small className="field-error">{errors.description.message}</small>}</label>
+                <label><span>Duration (minutes)</span><input type="number" min="5" max="480" {...register("duration_minutes", { valueAsNumber: true })} />{errors.duration_minutes && <small className="field-error">{errors.duration_minutes.message}</small>}</label>
+                <label><span>Slot interval (minutes)</span><input type="number" min="5" max="480" {...register("slot_interval_minutes", { valueAsNumber: true })} />{errors.slot_interval_minutes && <small className="field-error">{errors.slot_interval_minutes.message}</small>}</label>
+                <label><span>Price (minor units)</span><input type="number" min="0" {...register("price_minor", { valueAsNumber: true })} /><small className="field-hint">INR 500.00 is entered as 50000.</small>{errors.price_minor && <small className="field-error">{errors.price_minor.message}</small>}</label>
+                <label><span>Currency</span><input maxLength={3} {...register("currency")} />{errors.currency && <small className="field-error">{errors.currency.message}</small>}</label>
+                <label className="checkbox-field"><input type="checkbox" {...register("is_active")} /><span>Visible on my booking page</span></label>
+                <label className="checkbox-field default-booking-field">
+                  <input type="checkbox" {...register("is_default")} />
+                  <span>
+                    <strong>Use as default booking</strong>
+                    <small>Your main public link will open this event directly. Selecting it replaces any current default.</small>
+                    {errors.is_default && <small className="field-error">{errors.is_default.message}</small>}
+                  </span>
+                </label>
+                {save.isError && <StatusMessage>{getErrorMessage(save.error)}</StatusMessage>}
+                <div className="form-actions profile-dialog-actions">
+                  <Dialog.Close className="profile-dialog-cancel" disabled={save.isPending}>Cancel</Dialog.Close>
+                  <button className="save-button" type="submit" disabled={save.isPending}>{save.isPending ? <LoaderCircle className="spin" size={16}/> : <Check size={16}/>} {save.isPending ? "Saving" : editing ? "Update event" : "Create event"}</button>
+                </div>
+              </form>
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
     </div>
   );
 }
