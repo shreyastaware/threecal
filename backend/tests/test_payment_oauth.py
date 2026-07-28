@@ -88,3 +88,63 @@ def test_cashfree_authorize_is_created_server_side(
     }
     assert requests[0][2]["scope"] == "read_write"
     assert len(requests[0][2]["state"]) <= 64
+
+
+def test_connected_provider_blocks_every_additional_connection(
+    client: TestClient,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    gateway_creations = 0
+
+    class FakeGateway:
+        def register_webhook(
+            self,
+            webhook_url: str,
+            proposed_secret: str,
+        ) -> str:
+            assert webhook_url
+            return proposed_secret
+
+    def fake_create_gateway(*args: object, **kwargs: object) -> FakeGateway:
+        nonlocal gateway_creations
+        gateway_creations += 1
+        return FakeGateway()
+
+    monkeypatch.setattr(
+        "app.domains.payments.service.create_gateway",
+        fake_create_gateway,
+    )
+    register = client.post("/api/v1/auth/register", json=REGISTER_PAYLOAD)
+    doctor_id = uuid.UUID(register.json()["user"]["id"])
+    credential_payload = {
+        "provider": "cashfree",
+        "api_key": "cashfree-key",
+        "secret_key": "cashfree-secret",
+        "account_id": "merchant-one",
+    }
+
+    first_connection = client.post(
+        "/api/v1/payments/config",
+        json=credential_payload,
+    )
+    second_connection = client.post(
+        "/api/v1/payments/config",
+        json={**credential_payload, "provider": "razorpay"},
+    )
+    authorize = client.get("/api/v1/payments/oauth/razorpay/authorize")
+    callback = client.get(
+        "/api/v1/payments/oauth/stripe/callback",
+        params={
+            "code": "unused-code",
+            "state": create_oauth_state(doctor_id, PaymentProvider.STRIPE),
+        },
+    )
+
+    assert first_connection.status_code == 200
+    assert second_connection.status_code == 409
+    assert second_connection.json()["code"] == "payment_provider_already_connected"
+    assert authorize.status_code == 409
+    assert authorize.json()["code"] == "payment_provider_already_connected"
+    assert callback.status_code == 409
+    assert callback.json()["code"] == "payment_provider_already_connected"
+    assert gateway_creations == 1

@@ -124,7 +124,7 @@ def test_verified_webhook_confirms_once_and_accumulates_earnings(db: Session) ->
     billing = PlatformBilling(doctor_id=doctor.id, payment_method_id="pm", dodopayments_customer_id="cus", dodopayments_subscription_id="sub")
     db.add_all([booking, billing])
     secret = "whsec_doctor"
-    PaymentConfigRepository(db).save(doctor.id, PaymentProvider.STRIPE, {"access_token": "sk_test"}, "acct_123", secret)
+    PaymentConfigRepository(db).create(doctor.id, PaymentProvider.STRIPE, {"access_token": "sk_test"}, "acct_123", secret)
     db.commit()
 
     payload = {

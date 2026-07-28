@@ -1266,6 +1266,61 @@ a {
 .credential-form label:last-of-type, .credential-form .status-message, .credential-form .save-button { grid-column: 1 / -1; }
 .oauth-connect { display: grid; gap: 1rem; }
 .oauth-connect p, .billing-actions p, .billing-complete-form p { color: var(--muted-ink); font-size: .75rem; line-height: 1.65; margin: 0; }
+.provider-picker {
+  background: rgba(255, 255, 255, .28);
+  border: 1px solid var(--line);
+  display: grid;
+  gap: .8rem;
+  padding: 1rem;
+}
+.provider-picker label { display: grid; gap: .25rem; }
+.provider-picker label span {
+  color: var(--muted-ink);
+  font-size: .58rem;
+  font-weight: 800;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+}
+.provider-picker label strong { font-size: .76rem; }
+.provider-picker > p {
+  color: var(--muted-ink);
+  font-size: .66rem;
+  line-height: 1.5;
+  margin: 0;
+}
+.provider-select-shell { position: relative; }
+.provider-select-shell select {
+  appearance: none;
+  background: var(--paper);
+  border: 1px solid var(--ink);
+  color: var(--ink);
+  cursor: pointer;
+  font: inherit;
+  font-size: .72rem;
+  font-weight: 700;
+  min-height: 2.7rem;
+  padding: .75rem 2.8rem .75rem .8rem;
+  width: 100%;
+}
+.provider-select-shell select:focus-visible {
+  outline: 2px solid var(--coral);
+  outline-offset: 2px;
+}
+.provider-select-shell select:disabled {
+  background: rgba(23, 32, 27, .06);
+  color: var(--muted-ink);
+  cursor: not-allowed;
+}
+.provider-select-icon {
+  align-items: center;
+  display: flex;
+  pointer-events: none;
+  position: absolute;
+  right: .85rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.provider-reveal { max-width: 32rem; }
 .provider-grid {
   display: grid;
   gap: .75rem;
@@ -1300,6 +1355,11 @@ a {
 }
 .provider-card:hover::before,
 .provider-card.is-connected::before { transform: scaleX(1); }
+.provider-card.is-locked:hover {
+  border-color: var(--line);
+  box-shadow: none;
+  transform: none;
+}
 .provider-stripe { --provider-color: #635bff; }
 .provider-paypal { --provider-color: #003087; }
 .provider-razorpay { --provider-color: #0c57a0; }

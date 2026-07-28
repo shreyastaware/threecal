@@ -4,6 +4,7 @@ from urllib.parse import urlencode
 
 import httpx
 from fastapi import status
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.config import settings
@@ -24,6 +25,7 @@ class PaymentOnboardingService:
         self.configs = PaymentConfigRepository(db)
 
     def connect_credentials(self, doctor: User, payload: CredentialConnectRequest) -> DoctorPaymentConfig:
+        self._ensure_provider_can_be_connected(doctor.id)
         credentials = {"api_key": payload.api_key.get_secret_value()}
         if payload.secret_key:
             credentials["secret_key"] = payload.secret_key.get_secret_value()
@@ -37,12 +39,10 @@ class PaymentOnboardingService:
             secret = gateway.register_webhook(self._webhook_url(payload.provider, doctor.id), proposed_secret)
         except (ProviderAPIError, httpx.HTTPError) as exc:
             raise AppError(status.HTTP_502_BAD_GATEWAY, "provider_connection_failed", str(exc)) from exc
-        config = self.configs.save(doctor.id, payload.provider, credentials, account_id, secret)
-        self.db.commit()
-        self.db.refresh(config)
-        return config
+        return self._create_connection(doctor.id, payload.provider, credentials, account_id, secret)
 
     def oauth_url(self, provider: PaymentProvider, doctor: User) -> str:
+        self._ensure_provider_can_be_connected(doctor.id)
         try:
             state_token = create_oauth_state(doctor.id, provider)
         except ValueError as exc:
@@ -98,6 +98,7 @@ class PaymentOnboardingService:
         except ValueError as exc:
             raise AppError(400, "invalid_oauth_state", "The OAuth state is invalid or expired.") from exc
 
+        self._ensure_provider_can_be_connected(doctor_id)
         redirect_uri = f"{settings.public_api_url.rstrip('/')}{settings.api_v1_prefix}/payments/oauth/{provider.value}/callback"
         try:
             if provider == PaymentProvider.STRIPE:
@@ -179,8 +180,40 @@ class PaymentOnboardingService:
             webhook_secret = gateway.register_webhook(self._webhook_url(provider, doctor_id), generate_webhook_secret())
         except (ProviderAPIError, httpx.HTTPError) as exc:
             raise AppError(502, "webhook_registration_failed", str(exc)) from exc
-        config = self.configs.save(doctor_id, provider, credentials, account_id, webhook_secret)
-        self.db.commit()
+        return self._create_connection(doctor_id, provider, credentials, account_id, webhook_secret)
+
+    def _ensure_provider_can_be_connected(self, doctor_id: uuid.UUID) -> None:
+        if self.configs.get_for_doctor(doctor_id):
+            raise AppError(
+                status.HTTP_409_CONFLICT,
+                "payment_provider_already_connected",
+                "A payment provider is already connected. Only one payment connection is allowed.",
+            )
+
+    def _create_connection(
+        self,
+        doctor_id: uuid.UUID,
+        provider: PaymentProvider,
+        credentials: dict[str, str],
+        account_id: str | None,
+        webhook_secret: str,
+    ) -> DoctorPaymentConfig:
+        try:
+            config = self.configs.create(
+                doctor_id,
+                provider,
+                credentials,
+                account_id,
+                webhook_secret,
+            )
+            self.db.commit()
+        except IntegrityError as exc:
+            self.db.rollback()
+            raise AppError(
+                status.HTTP_409_CONFLICT,
+                "payment_provider_already_connected",
+                "A payment provider is already connected. Only one payment connection is allowed.",
+            ) from exc
         self.db.refresh(config)
         return config
 

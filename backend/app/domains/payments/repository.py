@@ -15,7 +15,7 @@ class PaymentConfigRepository:
     def get_for_doctor(self, doctor_id: uuid.UUID) -> DoctorPaymentConfig | None:
         return self.db.scalar(select(DoctorPaymentConfig).where(DoctorPaymentConfig.doctor_id == doctor_id))
 
-    def save(
+    def create(
         self,
         doctor_id: uuid.UUID,
         provider: PaymentProvider,
@@ -23,19 +23,14 @@ class PaymentConfigRepository:
         account_id: str | None,
         webhook_secret: str,
     ) -> DoctorPaymentConfig:
-        config = self.get_for_doctor(doctor_id)
-        values = {
-            "provider": provider,
-            "account_id": account_id,
-            "encrypted_api_key": encrypt_secret(json.dumps(credentials)),
-            "encrypted_webhook_secret": encrypt_secret(webhook_secret),
-        }
-        if config:
-            for key, value in values.items():
-                setattr(config, key, value)
-        else:
-            config = DoctorPaymentConfig(doctor_id=doctor_id, **values)
-            self.db.add(config)
+        config = DoctorPaymentConfig(
+            doctor_id=doctor_id,
+            provider=provider,
+            account_id=account_id,
+            encrypted_api_key=encrypt_secret(json.dumps(credentials)),
+            encrypted_webhook_secret=encrypt_secret(webhook_secret),
+        )
+        self.db.add(config)
         self.db.flush()
         return config
 
