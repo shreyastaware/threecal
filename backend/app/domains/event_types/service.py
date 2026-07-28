@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 from fastapi import status
 from sqlalchemy.exc import IntegrityError
@@ -83,6 +84,21 @@ class EventTypeService:
             for values in STARTER_EVENT_TYPES
         ]
         return self.repository.add_all(event_types)
+
+    def delete(
+        self,
+        event_type_id: uuid.UUID,
+        user_id: uuid.UUID,
+    ) -> None:
+        event_type = self.repository.get_for_user(event_type_id, user_id)
+        if not event_type:
+            raise AppError(
+                status.HTTP_404_NOT_FOUND,
+                "event_type_not_found",
+                "Event type not found.",
+            )
+        self.repository.soft_delete(event_type, datetime.now(timezone.utc))
+        self._commit(event_type)
 
     @staticmethod
     def _validate_default(payload: EventTypeInput) -> None:

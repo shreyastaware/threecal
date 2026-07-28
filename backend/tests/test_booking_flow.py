@@ -77,6 +77,34 @@ def test_event_type_slugs_are_generated_from_duration(client: TestClient) -> Non
     assert updated.json()["slug"] == "75min"
 
 
+def test_event_type_can_be_deleted(client: TestClient) -> None:
+    client.post(
+        "/api/v1/auth/register",
+        json={
+            "full_name": "Avery Stone",
+            "email": "avery@example.com",
+            "password": "strong-password",
+        },
+    )
+    client.patch(
+        "/api/v1/users/me",
+        json={"username": "avery", "timezone": "UTC"},
+    )
+    event = client.get("/api/v1/event-types").json()[0]
+
+    deleted = client.delete(f"/api/v1/event-types/{event['id']}")
+
+    assert deleted.status_code == 204
+    assert event["id"] not in {
+        item["id"] for item in client.get("/api/v1/event-types").json()
+    }
+    assert client.get(f"/api/v1/public/avery/{event['slug']}").status_code == 404
+
+    deleted_again = client.delete(f"/api/v1/event-types/{event['id']}")
+    assert deleted_again.status_code == 404
+    assert deleted_again.json()["code"] == "event_type_not_found"
+
+
 def test_default_event_type_is_unique_and_public(client: TestClient) -> None:
     client.post(
         "/api/v1/auth/register",

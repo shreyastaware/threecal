@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime
 
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
@@ -14,7 +15,10 @@ class EventTypeRepository:
         return list(
             self.db.scalars(
                 select(EventType)
-                .where(EventType.user_id == user_id)
+                .where(
+                    EventType.user_id == user_id,
+                    EventType.deleted_at.is_(None),
+                )
                 .order_by(EventType.created_at, EventType.id)
             )
         )
@@ -26,6 +30,7 @@ class EventTypeRepository:
                 .where(
                     EventType.user_id == user_id,
                     EventType.is_active.is_(True),
+                    EventType.deleted_at.is_(None),
                 )
                 .order_by(EventType.created_at, EventType.id)
             )
@@ -40,6 +45,7 @@ class EventTypeRepository:
             select(EventType).where(
                 EventType.id == event_type_id,
                 EventType.user_id == user_id,
+                EventType.deleted_at.is_(None),
             )
         )
 
@@ -53,6 +59,7 @@ class EventTypeRepository:
                 EventType.user_id == user_id,
                 EventType.slug == slug,
                 EventType.is_active.is_(True),
+                EventType.deleted_at.is_(None),
             )
         )
 
@@ -80,6 +87,7 @@ class EventTypeRepository:
         statement = select(EventType).where(
             EventType.user_id == user_id,
             EventType.is_default.is_(True),
+            EventType.deleted_at.is_(None),
         )
         if active_only:
             statement = statement.where(EventType.is_active.is_(True))
@@ -92,6 +100,13 @@ class EventTypeRepository:
     def add_all(self, event_types: list[EventType]) -> list[EventType]:
         self.db.add_all(event_types)
         return event_types
+
+    @staticmethod
+    def soft_delete(event_type: EventType, deleted_at: datetime) -> EventType:
+        event_type.is_active = False
+        event_type.is_default = False
+        event_type.deleted_at = deleted_at
+        return event_type
 
     def clear_default(
         self,

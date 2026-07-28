@@ -27,3 +27,8 @@ def create_event_type(payload: EventTypeInput, current_user: User = Depends(get_
 @router.patch("/{event_type_id}", response_model=EventTypeRead)
 def update_event_type(event_type_id: uuid.UUID, payload: EventTypeInput, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> EventType:
     return EventTypeService(db).update(event_type_id, current_user.id, payload)
+
+
+@router.delete("/{event_type_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_event_type(event_type_id: uuid.UUID, current_user: User = Depends(get_current_user), db: Session = Depends(get_db)) -> None:
+    EventTypeService(db).delete(event_type_id, current_user.id)

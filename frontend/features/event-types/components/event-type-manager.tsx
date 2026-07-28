@@ -3,7 +3,7 @@
 import { Dialog } from "@base-ui/react/dialog";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Check, Edit3, LoaderCircle, Plus, Route, X } from "lucide-react";
+import { Check, Edit3, LoaderCircle, Plus, Route, Trash2, TriangleAlert, X } from "lucide-react";
 import Link from "next/link";
 import posthog from "posthog-js";
 import { useEffect, useState } from "react";
@@ -67,6 +67,7 @@ export function EventTypeManager() {
   const events = useQuery({ queryKey: ["event-types"], queryFn: eventTypesApi.list });
   const [editing, setEditing] = useState<string | null>(null);
   const [editorOpen, setEditorOpen] = useState(false);
+  const [deleting, setDeleting] = useState<EventType | null>(null);
   const save = useMutation({
     mutationFn: ({ id, input }: { id?: string; input: EventTypeInput }) => id ? eventTypesApi.update(id, input) : eventTypesApi.create(input),
     onSuccess: (event) => {
@@ -80,6 +81,16 @@ export function EventTypeManager() {
       setEditing(null);
       setEditorOpen(false);
       reset(emptyValues);
+    },
+  });
+  const remove = useMutation({
+    mutationFn: eventTypesApi.delete,
+    onSuccess: (_, eventId) => {
+      queryClient.setQueryData<EventType[]>(["event-types"], (current) =>
+        current?.filter((event) => event.id !== eventId) ?? [],
+      );
+      posthog.capture("event_type_deleted", { event_type_id: eventId });
+      setDeleting(null);
     },
   });
   const {
@@ -160,6 +171,19 @@ export function EventTypeManager() {
     }
   }
 
+  function openDeleteDialog(event: EventType) {
+    remove.reset();
+    setDeleting(event);
+  }
+
+  function handleDeleteOpenChange(open: boolean) {
+    if (remove.isPending) return;
+    if (!open) {
+      setDeleting(null);
+      remove.reset();
+    }
+  }
+
   return (
     <div className="event-manager">
       <section className="workspace-panel event-list-panel">
@@ -173,7 +197,7 @@ export function EventTypeManager() {
         <div className="event-list">
           {events.data?.map((event) => <article className={!event.is_active ? "event-card inactive" : "event-card"} key={event.id}>
             <div><div className="event-status-row"><span className="event-status">{event.is_active ? "Live" : "Hidden"}</span>{event.is_default && <span className="event-default-status"><Route size={12}/> Default booking</span>}</div><h3>{event.title}</h3><p>{event.description || "No description yet."}</p></div>
-            <div className="event-meta"><strong>{displayPrice(event)}</strong><small>{event.duration_minutes} min · every {event.slot_interval_minutes} min</small><div><button className="quiet-button" type="button" onClick={() => openEditDialog(event.id)}><Edit3 size={14}/> Edit</button>{user?.username && event.is_active && <Link className="text-link" href={`/${user.username}/${event.slug}`} target="_blank">Open link</Link>}</div></div>
+            <div className="event-meta"><strong>{displayPrice(event)}</strong><small>{event.duration_minutes} min · every {event.slot_interval_minutes} min</small><div><button className="quiet-button" type="button" onClick={() => openEditDialog(event.id)}><Edit3 size={14}/> Edit</button><button aria-label={`Delete ${event.title}`} className="quiet-button event-delete-trigger" type="button" onClick={() => openDeleteDialog(event)}><Trash2 size={14}/> Delete</button>{user?.username && event.is_active && <Link className="text-link" href={`/${user.username}/${event.slug}`} target="_blank">Open link</Link>}</div></div>
           </article>)}
           {!events.isLoading && !events.data?.length && <div className="empty-state"><Plus size={18}/><p>Create your first event type to start accepting bookings.</p></div>}
         </div>
@@ -244,6 +268,49 @@ export function EventTypeManager() {
                   <button className="save-button" type="submit" disabled={save.isPending}>{save.isPending ? <LoaderCircle className="spin" size={16}/> : <Check size={16}/>} {save.isPending ? "Saving" : editing ? "Update event" : "Create event"}</button>
                 </div>
               </form>
+            </Dialog.Popup>
+          </Dialog.Viewport>
+        </Dialog.Portal>
+      </Dialog.Root>
+
+      <Dialog.Root onOpenChange={handleDeleteOpenChange} open={Boolean(deleting)}>
+        <Dialog.Portal>
+          <Dialog.Backdrop className="profile-dialog-backdrop" />
+          <Dialog.Viewport className="profile-dialog-viewport">
+            <Dialog.Popup className="profile-dialog-popup event-delete-popup">
+              <div className="profile-dialog-header">
+                <div>
+                  <p className="kicker kicker-dark">Delete event type</p>
+                  <Dialog.Title>Remove this offer?</Dialog.Title>
+                  <Dialog.Description>This action removes the event type from your workspace and disables its public booking link.</Dialog.Description>
+                </div>
+                <Dialog.Close aria-label="Close delete event dialog" className="profile-dialog-close" disabled={remove.isPending}>
+                  <X size={18} />
+                </Dialog.Close>
+              </div>
+
+              {deleting && (
+                <div className="event-delete-summary">
+                  <span><TriangleAlert aria-hidden="true" size={20} /></span>
+                  <div>
+                    <strong>{deleting.title}</strong>
+                    <p>Existing appointment records stay intact. People will no longer be able to book this event.</p>
+                  </div>
+                </div>
+              )}
+              {remove.isError && <StatusMessage>{getErrorMessage(remove.error)}</StatusMessage>}
+              <div className="profile-dialog-actions">
+                <Dialog.Close className="profile-dialog-cancel" disabled={remove.isPending}>Keep event</Dialog.Close>
+                <button
+                  className="event-delete-confirm"
+                  type="button"
+                  disabled={remove.isPending || !deleting}
+                  onClick={() => deleting && remove.mutate(deleting.id)}
+                >
+                  {remove.isPending ? <LoaderCircle className="spin" size={16} /> : <Trash2 size={16} />}
+                  {remove.isPending ? "Deleting" : "Delete event"}
+                </button>
+              </div>
             </Dialog.Popup>
           </Dialog.Viewport>
         </Dialog.Portal>

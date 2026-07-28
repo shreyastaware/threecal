@@ -27,4 +27,8 @@ export const eventTypesApi = {
       method: "PATCH",
       body: JSON.stringify(input),
     }),
+  delete: (id: string) =>
+    apiRequest<void>(`/event-types/${id}`, {
+      method: "DELETE",
+    }),
 };
