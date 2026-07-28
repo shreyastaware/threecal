@@ -41,6 +41,12 @@ class Settings(BaseSettings):
     public_api_url: str = "http://localhost:8000"
     frontend_url: str = "http://localhost:3000"
 
+    r2_account_id: str = ""
+    r2_access_key_id: str = ""
+    r2_secret_access_key: str = ""
+    r2_bucket_name: str = ""
+    r2_public_base_url: str = ""
+
     stripe_client_id: str = ""
     stripe_client_secret: str = ""
     paypal_client_id: str = ""

@@ -10,7 +10,7 @@ from app.core.errors import AppError
 from app.domains.availability.schemas import SlotRead
 from app.domains.availability.service import AvailabilityService
 from app.domains.bookings.models import Booking
-from app.domains.bookings.schemas import BookingCreate, BookingRead
+from app.domains.bookings.schemas import BookingCreate, BookingRead, PublicProfileRead
 from app.domains.bookings.service import BookingService
 from app.domains.email.service import EmailService, get_email_provider
 from app.domains.event_types.models import EventType
@@ -28,6 +28,39 @@ def resolve_page(db: Session, username: str, event_slug: str) -> tuple[User, Eve
     if not user or not event:
         raise AppError(status.HTTP_404_NOT_FOUND, "booking_page_not_found", "Booking page not found.")
     return user, event
+
+
+@router.get("/{username}", response_model=PublicProfileRead)
+def get_public_profile(
+    username: str,
+    db: Session = Depends(get_db),
+) -> PublicProfileRead:
+    user = db.scalar(
+        select(User).where(
+            User.username == username.lower(),
+            User.is_active.is_(True),
+        )
+    )
+    if not user:
+        raise AppError(
+            status.HTTP_404_NOT_FOUND,
+            "booking_profile_not_found",
+            "Booking profile not found.",
+        )
+    events = list(
+        db.scalars(
+            select(EventType)
+            .where(
+                EventType.user_id == user.id,
+                EventType.is_active.is_(True),
+            )
+            .order_by(EventType.created_at)
+        )
+    )
+    return PublicProfileRead(
+        host=PublicUserRead.model_validate(user),
+        event_types=[EventTypeRead.model_validate(event) for event in events],
+    )
 
 
 @router.get("/{username}/{event_slug}")

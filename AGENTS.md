@@ -40,3 +40,6 @@ Important Philosophy
 - Every business domain (Auth, Users, Bookings, Availability, Payments, etc.) must have its own isolated module containing its specific routers, services, repositories, schemas, and models.
 
 Ignore reading session_transcripts/ folder and its files
+
+when you have implemented changes in code write the summary and i will do the checking
+no need to open selenium or playwright to visually check the implementation

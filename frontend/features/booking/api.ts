@@ -1,24 +1,33 @@
 import { apiRequest } from "@/lib/api/client";
 
+export type PublicHost = {
+  full_name: string;
+  username: string;
+  bio: string | null;
+  timezone: string;
+  avatar_url: string | null;
+};
+
+export type PublicEventType = {
+  id: string;
+  title: string;
+  slug: string;
+  description: string | null;
+  duration_minutes: number;
+  slot_interval_minutes: number;
+  price_minor: number;
+  currency: string;
+  is_active: boolean;
+};
+
 export type PublicPage = {
-  host: {
-    full_name: string;
-    username: string;
-    bio: string | null;
-    timezone: string;
-    avatar_url: string | null;
-  };
-  event_type: {
-    id: string;
-    title: string;
-    slug: string;
-    description: string | null;
-    duration_minutes: number;
-    slot_interval_minutes: number;
-    price_minor: number;
-    currency: string;
-    is_active: boolean;
-  };
+  host: PublicHost;
+  event_type: PublicEventType;
+};
+
+export type PublicProfile = {
+  host: PublicHost;
+  event_types: PublicEventType[];
 };
 
 export type Slot = { starts_at: string; ends_at: string };
@@ -45,6 +54,8 @@ export type BookingInput = {
 };
 
 export const bookingApi = {
+  getProfile: (username: string) =>
+    apiRequest<PublicProfile>(`/public/${encodeURIComponent(username)}`),
   getPage: (username: string, eventSlug: string) =>
     apiRequest<PublicPage>(`/public/${encodeURIComponent(username)}/${encodeURIComponent(eventSlug)}`),
   getSlots: (username: string, eventSlug: string, start: string, end: string, timezone: string) =>

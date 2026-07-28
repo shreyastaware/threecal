@@ -7,7 +7,7 @@ import {
   AtSign,
   Check,
   Clock3,
-  ImageIcon,
+  ExternalLink,
   LoaderCircle,
   Pencil,
   UserRound,
@@ -25,6 +25,7 @@ import {
   schedulingApi,
   type ProfileUpdate,
 } from "@/features/scheduling/api";
+import { ProfileImageField } from "@/features/scheduling/components/profile-image-field";
 import { profileSchema } from "@/features/scheduling/schemas";
 import { getErrorMessage } from "@/lib/api/client";
 
@@ -43,7 +44,7 @@ const TIMEZONES = [
 
 type ProfileField = keyof Pick<
   User,
-  "full_name" | "username" | "timezone" | "bio" | "avatar_url"
+  "full_name" | "username" | "timezone" | "bio"
 >;
 
 type FieldFormValues = {
@@ -55,7 +56,6 @@ const fieldSchemas = {
   username: profileSchema.shape.username,
   timezone: profileSchema.shape.timezone,
   bio: profileSchema.shape.bio,
-  avatar_url: profileSchema.shape.avatar_url,
 };
 
 const fieldCopy: Record<
@@ -91,14 +91,6 @@ const fieldCopy: Record<
     description: "Your availability and booking times are anchored here.",
     icon: Clock3,
     inputMode: "select",
-  },
-  avatar_url: {
-    label: "Profile image",
-    title: "Edit your profile image",
-    description: "Paste a public HTTPS image URL. Leave it blank to remove the image.",
-    placeholder: "https://example.com/portrait.jpg",
-    icon: ImageIcon,
-    inputMode: "input",
   },
   bio: {
     label: "Short bio",
@@ -188,10 +180,7 @@ export function ProfileDetails({ user }: { user: User }) {
       return;
     }
 
-    const nullableField =
-      activeField === "username" ||
-      activeField === "bio" ||
-      activeField === "avatar_url";
+    const nullableField = activeField === "username" || activeField === "bio";
     const nextValue =
       nullableField && result.data.value === "" ? null : result.data.value;
     const updated = await save.mutateAsync({
@@ -203,13 +192,7 @@ export function ProfileDetails({ user }: { user: User }) {
     setActiveField(null);
   });
 
-  const fields: ProfileField[] = [
-    "full_name",
-    "username",
-    "timezone",
-    "avatar_url",
-    "bio",
-  ];
+  const fields: ProfileField[] = ["full_name", "username", "timezone", "bio"];
 
   return (
     <>
@@ -246,6 +229,7 @@ export function ProfileDetails({ user }: { user: User }) {
           </div>
 
           <div className="profile-field-list">
+            <ProfileImageField user={user} />
             {fields.map((field) => {
               const copy = fieldCopy[field];
               const Icon = copy.icon;
@@ -258,14 +242,28 @@ export function ProfileDetails({ user }: { user: User }) {
                       {displayValue(user, field)}
                     </p>
                   </div>
-                  <button
-                    aria-label={`Edit ${copy.label.toLowerCase()}`}
-                    className="profile-edit-button"
-                    onClick={() => openEditor(field)}
-                    type="button"
-                  >
-                    <Pencil size={14} /> Edit
-                  </button>
+                  <div className="profile-field-actions">
+                    {field === "username" && user.username && (
+                      <a
+                        aria-label="Open booking URL in a new tab"
+                        className="profile-open-link"
+                        href={`/${encodeURIComponent(user.username)}`}
+                        rel="noopener noreferrer"
+                        target="_blank"
+                        title="Open booking URL"
+                      >
+                        <ExternalLink size={15} />
+                      </a>
+                    )}
+                    <button
+                      aria-label={`Edit ${copy.label.toLowerCase()}`}
+                      className="profile-edit-button"
+                      onClick={() => openEditor(field)}
+                      type="button"
+                    >
+                      <Pencil size={14} /> Edit
+                    </button>
+                  </div>
                 </article>
               );
             })}
@@ -319,10 +317,10 @@ export function ProfileDetails({ user }: { user: User }) {
                     activeField !== "username" && (
                       <input
                         autoComplete={
-                          activeField === "full_name" ? "name" : "url"
+                          activeField === "full_name" ? "name" : "off"
                         }
                         placeholder={activeCopy.placeholder}
-                        type={activeField === "avatar_url" ? "url" : "text"}
+                        type="text"
                         {...register("value")}
                       />
                     )}

@@ -2,7 +2,6 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { ArrowRight, CalendarDays, Clock3, LoaderCircle, MapPin } from "lucide-react";
-import Image from "next/image";
 import posthog from "posthog-js";
 import { useMemo, useState } from "react";
 
@@ -60,7 +59,11 @@ export function PublicBooking({ username, eventSlug }: { username: string; event
         <div><span className="wordmark wordmark-light">threecal.</span><p className="booking-number">BOOKING DESK / {username.toUpperCase()}</p></div>
         <div className="host-copy">
           <p className="kicker">Appointment with</p>
-          {page.data.host.avatar_url && <Image className="host-avatar" src={page.data.host.avatar_url} alt="" width={64} height={64} unoptimized />}
+          {page.data.host.avatar_url && (
+            // Profile images are already normalized and optimized by the backend.
+            // eslint-disable-next-line @next/next/no-img-element
+            <img className="host-avatar" src={page.data.host.avatar_url} alt="" width={64} height={64} />
+          )}
           <h1>{page.data.host.full_name}</h1>
           <p>{page.data.host.bio ?? "Choose a considered time for a focused conversation."}</p>
           <small className="host-timezone"><MapPin size={14}/> Host timezone: {page.data.host.timezone}</small>

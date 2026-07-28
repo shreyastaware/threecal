@@ -4,6 +4,8 @@ from datetime import datetime
 from pydantic import BaseModel, ConfigDict, EmailStr, Field
 
 from app.domains.bookings.models import BookingStatus
+from app.domains.event_types.schemas import EventTypeRead
+from app.domains.users.schemas import PublicUserRead
 
 
 class BookingCreate(BaseModel):
@@ -26,3 +28,8 @@ class BookingRead(BaseModel):
     provider_payment_id: str | None
     booking_amount: int
     payment_expires_at: datetime
+
+
+class PublicProfileRead(BaseModel):
+    host: PublicUserRead
+    event_types: list[EventTypeRead]

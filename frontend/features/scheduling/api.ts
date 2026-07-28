@@ -15,6 +15,14 @@ export type ProfileUpdate = Partial<Pick<User, "full_name" | "username" | "bio" 
 export const schedulingApi = {
   updateProfile: (data: ProfileUpdate) =>
     apiRequest<User>("/users/me", { method: "PATCH", body: JSON.stringify(data) }),
+  uploadAvatar: (avatar: File) => {
+    const formData = new FormData();
+    formData.append("avatar", avatar);
+    return apiRequest<User>("/users/me/avatar", {
+      method: "POST",
+      body: formData,
+    });
+  },
   getSchedule: () => apiRequest<WorkingHour[]>("/availability"),
   saveSchedule: (working_hours: WorkingHour[]) =>
     apiRequest<WorkingHour[]>("/availability", { method: "PUT", body: JSON.stringify({ working_hours }) }),
