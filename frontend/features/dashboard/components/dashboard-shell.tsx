@@ -68,7 +68,7 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="workspace-nav-footer">
-          <Menu.Root>
+          <Menu.Root modal={false}>
             <Menu.Trigger
               className="workspace-user-trigger"
               type="button"
