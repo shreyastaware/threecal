@@ -15,11 +15,9 @@ Authentication uses the backend's `threecal_access_token` HTTP-only cookie, so A
 - `/` marketing page
 - `/register` and `/login` authentication
 - `/onboarding` profile setup for new accounts
-- `/dashboard` workspace overview and platform billing
+- `/dashboard` workspace overview and public booking links
 - `/dashboard/event-types` event type create/edit
 - `/dashboard/availability` weekly hours and breaks
-- `/dashboard/payments` provider onboarding and platform billing
-- `/dashboard/billing` return destination for the Dodo mandate checkout
 - `/dashboard/profile` public profile and booking URL
 - `/dashboard/bookings` API capability notice; the backend does not currently expose a host booking-list endpoint
 - `/:username/:eventSlug` public booking, invitee details, and provider checkout

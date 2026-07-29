@@ -4,7 +4,6 @@ import { Menu } from "@base-ui/react/menu";
 import {
   CalendarDays,
   ChevronUp,
-  CreditCard,
   LayoutDashboard,
   Link2,
   LoaderCircle,
@@ -23,7 +22,6 @@ const navigation = [
   { href: "/dashboard/event-types", label: "Event types", icon: Link2 },
   { href: "/dashboard/bookings", label: "Bookings", icon: CalendarDays },
   { href: "/dashboard/availability", label: "Availability", icon: Settings2 },
-  { href: "/dashboard/payments", label: "Payments", icon: CreditCard },
 ];
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {

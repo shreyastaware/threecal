@@ -43,6 +43,7 @@ export function BookingForm({
   const [checkout, setCheckout] = useState<Checkout | null>(null);
   const [now, setNow] = useState(() => Date.now());
   const create = useMutation({ mutationFn: (values: BookingFormValues) => bookingApi.create(username, eventSlug, { ...values, notes: values.notes || undefined, starts_at: selected }) });
+  // The mutation error is rendered below.
   const startCheckout = useMutation({ mutationFn: paymentsApi.createCheckout, onSuccess: setCheckout });
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<BookingFormValues>({
     resolver: zodResolver(bookingSchema),

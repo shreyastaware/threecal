@@ -79,8 +79,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     queryClient.setQueryData(CURRENT_USER_KEY, null);
     queryClient.removeQueries({ queryKey: ["availability"] });
     queryClient.removeQueries({ queryKey: ["event-types"] });
-    queryClient.removeQueries({ queryKey: ["payments"] });
-    queryClient.removeQueries({ queryKey: ["billing"] });
   }, [queryClient]);
 
   const value = useMemo(
