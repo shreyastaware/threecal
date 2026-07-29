@@ -12,10 +12,23 @@ from app.core.errors import AppError
 from app.domains.bookings.models import Booking, BookingStatus
 from app.domains.event_types.models import EventType
 from app.domains.payments.gateways import PaymentRequest, ProviderAPIError, create_gateway, generate_webhook_secret
-from app.domains.payments.models import DoctorPaymentConfig, PaymentProvider
+from app.domains.payments.models import (
+    DoctorPaymentConfig,
+    PaymentAccount,
+    PaymentProvider,
+)
 from app.domains.payments.oauth_state import create_oauth_state, read_oauth_state
-from app.domains.payments.repository import PaymentConfigRepository
-from app.domains.payments.schemas import CheckoutRead, CredentialConnectRequest
+from app.domains.payments.repository import (
+    PaymentAccountRepository,
+    PaymentConfigRepository,
+)
+from app.domains.payments.schemas import (
+    CheckoutRead,
+    CredentialConnectRequest,
+    PaymentAccountCreate,
+    PaymentAccountRead,
+    PaymentAccountUpdate,
+)
 from app.domains.users.models import User
 
 
@@ -253,4 +266,92 @@ class CheckoutService:
             client_secret=result.client_secret,
             checkout_url=result.checkout_url,
             public_key=result.public_key,
+        )
+
+
+class PaymentAccountService:
+    def __init__(self, db: Session) -> None:
+        self.db = db
+        self.accounts = PaymentAccountRepository(db)
+
+    def get(self, user: User) -> PaymentAccountRead | None:
+        account = self.accounts.get_for_user(user.id)
+        return self._to_read(account) if account else None
+
+    def create(
+        self,
+        user: User,
+        payload: PaymentAccountCreate,
+    ) -> PaymentAccountRead:
+        if self.accounts.get_for_user(user.id):
+            raise AppError(
+                status.HTTP_409_CONFLICT,
+                "payment_account_already_exists",
+                "A payment account is already connected.",
+            )
+        try:
+            account = self.accounts.create(
+                user.id,
+                account_name=payload.account_name,
+                account_email=str(payload.account_email),
+                business_type=payload.business_type,
+                business_name=payload.business_name,
+                branch_ifsc_code=payload.branch_ifsc_code,
+                account_number=payload.account_number.get_secret_value(),
+                beneficiary_name=payload.beneficiary_name,
+            )
+            self.db.commit()
+        except IntegrityError as exc:
+            self.db.rollback()
+            raise AppError(
+                status.HTTP_409_CONFLICT,
+                "payment_account_already_exists",
+                "A payment account is already connected.",
+            ) from exc
+        self.db.refresh(account)
+        return self._to_read(account)
+
+    def update(
+        self,
+        user: User,
+        payload: PaymentAccountUpdate,
+    ) -> PaymentAccountRead:
+        account = self.accounts.get_for_user(user.id)
+        if not account:
+            raise AppError(
+                status.HTTP_404_NOT_FOUND,
+                "payment_account_not_found",
+                "Connect a payment account before editing it.",
+            )
+        self.accounts.update(
+            account,
+            account_name=payload.account_name,
+            account_email=str(payload.account_email),
+            business_type=payload.business_type,
+            business_name=payload.business_name,
+            branch_ifsc_code=payload.branch_ifsc_code,
+            account_number=(
+                payload.account_number.get_secret_value()
+                if payload.account_number
+                else None
+            ),
+            beneficiary_name=payload.beneficiary_name,
+        )
+        self.db.commit()
+        self.db.refresh(account)
+        return self._to_read(account)
+
+    def _to_read(self, account: PaymentAccount) -> PaymentAccountRead:
+        account_number = self.accounts.account_number(account)
+        masked_account_number = (
+            account_number[:3] + ("*" * max(0, len(account_number) - 3))
+        )
+        return PaymentAccountRead(
+            account_name=account.account_name,
+            account_email=account.account_email,
+            business_type=account.business_type,
+            business_name=account.business_name,
+            branch_ifsc_code=account.branch_ifsc_code,
+            beneficiary_name=account.beneficiary_name,
+            masked_account_number=masked_account_number,
         )
