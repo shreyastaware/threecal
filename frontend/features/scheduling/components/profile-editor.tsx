@@ -5,11 +5,17 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Check, LoaderCircle } from "lucide-react";
 import posthog from "posthog-js";
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 
 import { StatusMessage } from "@/features/dashboard/components/status-message";
 import { CURRENT_USER_KEY } from "@/components/providers/auth-provider";
-import { TimezoneOptions } from "@/components/timezone-options";
+import { TimezoneSelectItems } from "@/components/timezone-options";
+import {
+  Select,
+  SelectContent,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { User } from "@/features/auth/types/auth";
 import { schedulingApi } from "@/features/scheduling/api";
 import { profileSchema, type ProfileFormValues } from "@/features/scheduling/schemas";
@@ -25,6 +31,7 @@ export function ProfileEditor({ user, onSaved }: { user: User; onSaved?: (update
     register,
     reset,
     handleSubmit,
+    control,
     formState: { errors, isDirty, isSubmitting },
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -97,9 +104,30 @@ export function ProfileEditor({ user, onSaved }: { user: User; onSaved?: (update
         </label>        
         <label>
           <span>Timezone</span>
-          <select {...register("timezone")}>
-            <TimezoneOptions currentTimezone={user.timezone} />
-          </select>
+          <Controller
+            control={control}
+            name="timezone"
+            render={({ field }) => (
+              <Select
+                inputRef={field.ref}
+                name={field.name}
+                onValueChange={field.onChange}
+                value={field.value}
+              >
+                <SelectTrigger
+                  aria-invalid={Boolean(errors.timezone)}
+                  aria-label="Timezone"
+                  className="dashboard-select-trigger"
+                  onBlur={field.onBlur}
+                >
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="dashboard-select-content">
+                  <TimezoneSelectItems currentTimezone={user.timezone} />
+                </SelectContent>
+              </Select>
+            )}
+          />
           {errors.timezone && <small className="field-error">{errors.timezone.message}</small>}
         </label>
         <label>

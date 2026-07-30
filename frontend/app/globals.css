@@ -1156,6 +1156,47 @@ a {
   outline: 2px solid rgba(217, 255, 67, .5);
 }
 
+.dashboard-select-trigger {
+  background: rgba(255, 255, 255, .55);
+  border-color: var(--line);
+  border-radius: 0;
+  color: var(--ink);
+  min-height: 2.9rem;
+  padding: .8rem;
+  width: 100%;
+}
+
+.profile-form .dashboard-select-trigger {
+  background: rgba(255, 255, 255, .35);
+  min-height: 2.7rem;
+  padding: .7rem;
+}
+
+.dashboard-select-trigger:focus-visible {
+  border-color: var(--ink);
+  box-shadow: none;
+  outline: 2px solid rgba(217, 255, 67, .65);
+}
+
+.dashboard-select-content {
+  background: #fbfaf5;
+  border: 1px solid var(--ink);
+  border-radius: 0;
+  box-shadow: 4px 4px 0 rgba(23, 32, 27, .24);
+  padding: .35rem;
+}
+
+.dashboard-select-content [data-slot="select-item"] {
+  border-radius: 0;
+  font-size: .73rem;
+  padding: .7rem 2rem .7rem .75rem;
+}
+
+.dashboard-select-content [data-slot="select-item"]:focus {
+  background: var(--acid);
+  color: var(--ink);
+}
+
 .profile-form label,
 .event-form label,
 .booking-form label {

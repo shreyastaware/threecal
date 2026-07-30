@@ -7,8 +7,15 @@ import { Check, Edit3, LoaderCircle, Plus, Route, Trash2, TriangleAlert, X } fro
 import Link from "next/link";
 import posthog from "posthog-js";
 import { useEffect, useState } from "react";
-import { useForm, useWatch } from "react-hook-form";
+import { Controller, useForm, useWatch } from "react-hook-form";
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { StatusMessage } from "@/features/dashboard/components/status-message";
 import { eventTypesApi, type EventType, type EventTypeInput } from "@/features/event-types/api";
@@ -223,13 +230,34 @@ export function EventTypeManager() {
                 <label><span>Title</span><input {...register("title")} placeholder="Advisory session" />{errors.title && <small className="field-error">{errors.title.message}</small>}</label>
                 <label>
                   <span>Duration</span>
-                  <select {...register("duration_option")}>
-                    <option value="15">15 min</option>
-                    <option value="30">30 min</option>
-                    <option value="45">45 min</option>
-                    <option value="60">60 min</option>
-                    <option value="custom">Custom</option>
-                  </select>
+                  <Controller
+                    control={control}
+                    name="duration_option"
+                    render={({ field }) => (
+                      <Select
+                        inputRef={field.ref}
+                        name={field.name}
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <SelectTrigger
+                          aria-invalid={Boolean(errors.duration_option)}
+                          aria-label="Duration"
+                          className="dashboard-select-trigger"
+                          onBlur={field.onBlur}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="dashboard-select-content">
+                          <SelectItem value="15">15 min</SelectItem>
+                          <SelectItem value="30">30 min</SelectItem>
+                          <SelectItem value="45">45 min</SelectItem>
+                          <SelectItem value="60">60 min</SelectItem>
+                          <SelectItem value="custom">Custom</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
                   <small className="field-hint">The booking URL is generated automatically from the duration, for example /30min.</small>
                 </label>
                 {selectedDuration === "custom" && (

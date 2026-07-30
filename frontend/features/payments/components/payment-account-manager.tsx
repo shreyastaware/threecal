@@ -19,8 +19,15 @@ import {
 } from "lucide-react";
 import posthog from "posthog-js";
 import { useState } from "react";
-import { useForm } from "react-hook-form";
+import { Controller, useForm } from "react-hook-form";
 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { StatusMessage } from "@/features/dashboard/components/status-message";
 import {
@@ -117,6 +124,7 @@ export function PaymentAccountManager() {
     reset,
     handleSubmit,
     setError,
+    control,
     formState: { errors },
   } = useForm<PaymentAccountFormValues>({
     resolver: zodResolver(paymentAccountFormSchema),
@@ -384,13 +392,34 @@ export function PaymentAccountManager() {
                 </p>
                 <label>
                   <span>Business type</span>
-                  <select {...register("business_type")}>
-                    {businessTypeOptions.map((option) => (
-                      <option key={option.value} value={option.value}>
-                        {option.label}
-                      </option>
-                    ))}
-                  </select>
+                  <Controller
+                    control={control}
+                    name="business_type"
+                    render={({ field }) => (
+                      <Select
+                        inputRef={field.ref}
+                        name={field.name}
+                        onValueChange={field.onChange}
+                        value={field.value}
+                      >
+                        <SelectTrigger
+                          aria-invalid={Boolean(errors.business_type)}
+                          aria-label="Business type"
+                          className="dashboard-select-trigger"
+                          onBlur={field.onBlur}
+                        >
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="dashboard-select-content">
+                          {businessTypeOptions.map((option) => (
+                            <SelectItem key={option.value} value={option.value}>
+                              {option.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    )}
+                  />
                   {errors.business_type && (
                     <small className="field-error">
                       {errors.business_type.message}

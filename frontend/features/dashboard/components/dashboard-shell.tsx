@@ -1,6 +1,5 @@
 "use client";
 
-import { Menu } from "@base-ui/react/menu";
 import {
   CalendarDays,
   ChevronUp,
@@ -16,14 +15,20 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect } from "react";
 
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 
 const navigation = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/dashboard/event-types", label: "Event types", icon: Link2 },
   { href: "/dashboard/bookings", label: "Bookings", icon: CalendarDays },
-  { href: "/dashboard/payments", label: "Payments", icon: Landmark },
   { href: "/dashboard/availability", label: "Availability", icon: Settings2 },
+  { href: "/dashboard/payments", label: "Payments", icon: Landmark },
 ];
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -68,42 +73,39 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
         <div className="workspace-nav-footer">
-          <Menu.Root modal={false}>
-            <Menu.Trigger
+          <DropdownMenu modal={false}>
+            <DropdownMenuTrigger
               className="workspace-user-trigger"
               type="button"
             >
               <UserRound />
               <span>{user.full_name}</span>
               <ChevronUp className="workspace-user-chevron" />
-            </Menu.Trigger>
-            <Menu.Portal>
-              <Menu.Positioner
-                align="start"
-                className="workspace-user-menu-positioner"
-                side="top"
-                sideOffset={8}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="start"
+              className="workspace-user-menu"
+              side="top"
+              sideOffset={8}
+            >
+              <DropdownMenuItem
+                className="workspace-user-menu-item"
+                closeOnClick
+                render={<Link href="/dashboard/profile" />}
               >
-                <Menu.Popup className="workspace-user-menu">
-                  <Menu.LinkItem
-                    className="workspace-user-menu-item"
-                    closeOnClick
-                    render={<Link href="/dashboard/profile" />}
-                  >
-                    <UserRound /> Profile
-                  </Menu.LinkItem>
-                  <Menu.Item
-                    className="workspace-user-menu-item workspace-user-menu-signout"
-                    nativeButton
-                    onClick={signOut}
-                    render={<button type="button" />}
-                  >
-                    <LogOut /> Sign out
-                  </Menu.Item>
-                </Menu.Popup>
-              </Menu.Positioner>
-            </Menu.Portal>
-          </Menu.Root>
+                <UserRound /> Profile
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="workspace-user-menu-item workspace-user-menu-signout"
+                nativeButton
+                onClick={signOut}
+                render={<button type="button" />}
+                variant="destructive"
+              >
+                <LogOut /> Sign out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </aside>
       <div className="workspace-content">{children}</div>
