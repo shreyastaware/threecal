@@ -4,9 +4,6 @@ import { motion } from "framer-motion";
 import { ArrowRight, CalendarCheck2, Clock3, ShieldCheck, Sparkles } from "lucide-react";
 import Link from "next/link";
 
-import { GITHUB_URL } from "@/features/marketing/content";
-import { GithubIcon } from "@/features/marketing/components/social-icons";
-
 const fadeUp = {
   hidden: { opacity: 0, y: 22 },
   visible: (delay: number) => ({
@@ -16,7 +13,7 @@ const fadeUp = {
   }),
 };
 
-// Above-the-fold hero: eyebrow badge, headline, dual CTA, and a floating
+// Above-the-fold hero: eyebrow badge, headline, primary CTA, and a floating
 // booking-card mockup animated with framer-motion for a modern SaaS feel.
 export function LandingHero() {
   return (
@@ -68,15 +65,6 @@ export function LandingHero() {
             <Link href="/register" className="hero-cta">
               Start Free <ArrowRight size={18} />
             </Link>
-            <a
-              href={GITHUB_URL}
-              target="_blank"
-              rel="noreferrer noopener"
-              className="hero-cta-secondary"
-            >
-              <GithubIcon width={16} height={16} />
-              Star on GitHub
-            </a>
           </motion.div>
 
           <motion.p
@@ -86,7 +74,7 @@ export function LandingHero() {
             animate="visible"
             variants={fadeUp}
           >
-            No credit card required · Free while in beta · Open source
+            No credit card required · Free while in beta
           </motion.p>
         </div>
 

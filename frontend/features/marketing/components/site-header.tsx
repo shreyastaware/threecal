@@ -1,11 +1,9 @@
 "use client";
 
 import { AnimatePresence, motion, useScroll, useMotionValueEvent } from "framer-motion";
-import { ArrowRight, Menu, Star, X as CloseIcon } from "lucide-react";
+import { ArrowRight, Menu, X as CloseIcon } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
-
-import { GITHUB_URL } from "@/features/marketing/content";
 
 const NAV_LINKS = [
   { label: "How it works", href: "#how-it-works" },
@@ -43,15 +41,6 @@ export function SiteHeader() {
         </div>
 
         <div className="site-header-actions">
-          <a
-            href={GITHUB_URL}
-            target="_blank"
-            rel="noreferrer noopener"
-            className="github-chip"
-          >
-            <Star size={13} strokeWidth={2.4} />
-            Open source
-          </a>
           <Link href="/login" className="nav-login">
             Sign in
           </Link>
@@ -86,9 +75,6 @@ export function SiteHeader() {
                   {link.label}
                 </a>
               ))}
-              <a href={GITHUB_URL} target="_blank" rel="noreferrer noopener">
-                GitHub
-              </a>
               <Link href="/login" onClick={() => setOpen(false)}>
                 Sign in
               </Link>

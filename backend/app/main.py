@@ -1,4 +1,4 @@
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -21,7 +21,7 @@ from app.domains.webhooks.models import WebhookEvent  # noqa: F401, E402
 
 
 @asynccontextmanager
-async def lifespan(_: FastAPI) -> AsyncIterator[None]:
+async def lifespan(_: FastAPI) -> AsyncGenerator[None]:
     if settings.auto_create_tables:
         Base.metadata.create_all(bind=engine)
     yield

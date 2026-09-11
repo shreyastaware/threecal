@@ -361,25 +361,6 @@ a {
   padding: 0.35rem;
 }
 
-.github-chip {
-  align-items: center;
-  background: rgba(23, 32, 27, 0.06);
-  border: 1px solid var(--line);
-  border-radius: 999px;
-  color: var(--ink);
-  display: inline-flex;
-  font-size: 0.72rem;
-  font-weight: 700;
-  gap: 0.4rem;
-  padding: 0.4rem 0.75rem;
-  transition: background 150ms ease, border-color 150ms ease;
-}
-
-.github-chip:hover {
-  background: var(--acid);
-  border-color: var(--ink);
-}
-
 .nav-login,
 .nav-cta {
   font-size: 0.78rem;
@@ -510,34 +491,6 @@ a {
 .hero-cta:hover {
   box-shadow: 2px 2px 0 var(--ink);
   transform: translate(3px, 3px);
-}
-
-.hero-cta-secondary {
-  align-items: center;
-  background: transparent;
-  border: 1px solid var(--ink);
-  color: var(--ink);
-  display: inline-flex;
-  font-size: 0.8rem;
-  font-weight: 800;
-  gap: 0.6rem;
-  padding: 1rem 1.25rem;
-  transition: background 150ms ease, color 150ms ease;
-}
-
-.hero-cta-secondary:hover {
-  background: var(--ink);
-  color: var(--paper);
-}
-
-.hero-cta-secondary-light {
-  border-color: rgba(244, 240, 230, 0.4);
-  color: var(--paper);
-}
-
-.hero-cta-secondary-light:hover {
-  background: var(--paper);
-  color: var(--ink);
 }
 
 .hero-note {
