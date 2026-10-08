@@ -15,13 +15,13 @@
   </a>
 </p>
 
-Threecal lets a professional publish event-specific booking links, define weekly availability, collect invitee details, and route paid bookings through a connected payment provider.
+Threecal lets a professional publish event-specific booking links, define weekly availability, collect invitee details, and collect payment through Razorpay with an automatic Route split between the platform commission and the host's bank account.
 
 ## Project Status
 
-The repository contains a working first version of the authentication, profile, scheduling, event type, public booking, provider payment, and platform billing flows.
+The repository contains working authentication (with email verification and password reset), profiles, weekly availability with date overrides, event types with booking rules and meeting locations, public booking, Razorpay Route payments with refunds, host and invitee booking management, email notifications with calendar invites and reminders, Google/Outlook calendar sync, and Google Meet/Zoom links.
 
-The backend is the source of truth for available capabilities. Calendar synchronization, host booking management, booking status lookup, payment status lookup, and account recovery are not implemented because the current API does not expose those operations. The complete implementation state is recorded in [`MEMORY.md`](./MEMORY.md).
+The backend is the source of truth for available capabilities. The complete implementation state is recorded in [`MEMORY.md`](./MEMORY.md).
 
 ## Architecture
 
@@ -49,9 +49,11 @@ threecal/
 - Alembic migrations
 - Pydantic v2 request and response validation
 - HTTP-only cookie authentication using JWT
-- Domain modules for auth, users, availability, event types, bookings, payments, billing, webhooks, and email
-- Provider abstractions for email and doctor payment gateways
-- BackgroundTasks for booking confirmation email delivery
+- Domain modules for auth, users, availability, event types, bookings, payments, webhooks, email, notifications, calendars, conferencing, and backups
+- Provider abstractions for email, the platform payment gateway (Razorpay Route), calendars, and conferencing
+- In-process domain event bus (`app/core/events.py`) for booking notifications and integration sync
+- In-process scheduler for expiring unpaid bookings, reminders, and daily database backups
+- Sentry error monitoring, structured JSON logs with optional Grafana Loki shipping, and per-route rate limiting
 
 ## Local Development
 
@@ -78,11 +80,7 @@ pnpm dev
 
 The frontend is available at `http://localhost:3000`. Set `NEXT_PUBLIC_API_URL=http://localhost:8000/api/v1` for local API access.
 
-Frontend browser checkout integrations may also require:
-
-- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` for Stripe Payment Element checkout
-- `NEXT_PUBLIC_RAZORPAY_KEY_ID` for Razorpay checkout
-- `NEXT_PUBLIC_CASHFREE_MODE=sandbox` or `production` for Cashfree checkout
+Invitee checkout uses Razorpay Checkout with the key returned by the backend, so the frontend needs no payment keys. The backend needs `RAZORPAY_KEY_ID`, `RAZORPAY_KEY_SECRET`, `RAZORPAY_WEBHOOK_SECRET` (for the platform webhook at `/api/v1/webhooks/razorpay`) and `PLATFORM_COMMISSION_BPS`.
 
 The backend must allow the frontend origin through `CORS_ORIGINS`, and cookie settings must be compatible with the deployed frontend and API domains.
 
@@ -92,13 +90,16 @@ The backend must allow the frontend origin through `CORS_ORIGINS`, and cookie se
 - `/register` account creation
 - `/login` password login
 - `/onboarding` required profile setup for accounts without a username
-- `/dashboard` workspace overview, public links, statistics, and platform billing
+- `/forgot-password`, `/reset-password`, `/verify-email` account recovery and verification
+- `/dashboard` workspace overview, public links, statistics, payout status, and next bookings
 - `/dashboard/profile` public name, username, timezone, bio, and avatar URL editor
 - `/dashboard/event-types` event type creation and full update editor
-- `/dashboard/availability` weekly working hours and break editor
-- `/dashboard/payments` doctor payment-provider onboarding and platform billing
-- `/dashboard/billing` Dodo mandate checkout return destination and verification form
-- `/dashboard/bookings` capability notice for the missing host booking-list API
+- `/dashboard/availability` weekly working hours, breaks, and date overrides
+- `/dashboard/payments` host bank account and Razorpay Route payout onboarding
+- `/dashboard/bookings` upcoming, past, and cancelled bookings with cancel and reschedule
+- `/dashboard/integrations` Google Calendar, Outlook, and Zoom connections
+- `/dashboard/settings` email verification, password change, and account deletion
+- `/bookings/manage/:bookingId` invitee self-service cancel and reschedule (token link from email)
 - `/:username/:eventSlug` public event page, slot picker, invitee form, and checkout
 
 ## Verification
@@ -107,19 +108,24 @@ The backend must allow the frontend origin through `CORS_ORIGINS`, and cookie se
 cd frontend
 pnpm exec tsc --noEmit
 pnpm lint
+pnpm test
 pnpm build
 ```
 
 ```bash
 cd backend
 uv run pytest -q
+uv run ruff check app tests alembic
+uv run mypy app
 ```
+
+CI runs the same checks in `.github/workflows/ci.yml`.
 
 ## Operations
 
-- Apply migrations before deployment with `alembic upgrade head`.
-- Run the idempotent monthly billing reconciler daily through Railway Cron with `python -m app.jobs.run_billing_cycle`.
-- Keep `CREDENTIALS_ENCRYPTION_KEY` stable and secret because doctor payment credentials are encrypted at rest.
+- The backend Docker image applies `alembic upgrade head` on start; see `backend/README.md` for the Railway volume, scheduler, and environment setup.
+- Set `SCHEDULER_ENABLED=true` on the single Railway API instance to expire unpaid bookings, send reminders, and back up SQLite to R2 daily.
+- Keep `CREDENTIALS_ENCRYPTION_KEY` stable and secret because host bank account numbers and PANs are encrypted at rest.
 - Deploy the frontend to Vercel and the backend to Railway according to the project deployment target.
 - SQLite is the initial database and is intended to use a Railway persistent volume with backups to Cloudflare R2; PostgreSQL is the planned later database.
 

@@ -13,21 +13,26 @@ Authentication uses the backend's `threecal_access_token` HTTP-only cookie, so A
 ## Routes
 
 - `/` marketing page
-- `/register` and `/login` authentication
+- `/register`, `/login`, `/forgot-password`, `/reset-password`, `/verify-email` authentication and recovery
 - `/onboarding` profile setup for new accounts
-- `/dashboard` workspace overview and public booking links
-- `/dashboard/event-types` event type create/edit
-- `/dashboard/availability` weekly hours and breaks
+- `/dashboard` workspace overview, payout status, and next bookings
+- `/dashboard/event-types` event types with booking rules and meeting location
+- `/dashboard/availability` weekly hours, breaks, and date overrides
+- `/dashboard/bookings` host booking list with cancel and reschedule
+- `/dashboard/payments` bank account and Razorpay Route payout onboarding
+- `/dashboard/integrations` Google Calendar, Outlook, and Zoom connections
+- `/dashboard/settings` email verification, password change, account deletion
 - `/dashboard/profile` public profile and booking URL
-- `/dashboard/bookings` API capability notice; the backend does not currently expose a host booking-list endpoint
-- `/:username/:eventSlug` public booking, invitee details, and provider checkout
+- `/:username/:eventSlug` public booking, invitee details, and Razorpay checkout
+- `/bookings/manage/:bookingId` invitee cancel/reschedule via emailed token link
 
-The current backend does not expose calendar integration, booking management, password reset, email verification, or payment status lookup endpoints. The UI does not pretend those operations are available.
+Errors are reported to Sentry when `NEXT_PUBLIC_SENTRY_DSN` is set, and product analytics go to PostHog.
 
 ## Verification
 
 ```bash
 pnpm exec tsc --noEmit
 pnpm lint
+pnpm test
 pnpm build
 ```

@@ -3,168 +3,60 @@
 ## Product
 
 - Threecal is a paid appointment booking application for advisors, coaches, consultants, doctors, and other professionals.
-- A provider configures a profile, public username, event types, weekly availability, and payment collection settings.
-- An invitee opens an event-specific public URL, selects an available slot, enters contact details, and either confirms a free booking or completes payment for a paid booking.
-- The frontend and backend are separated into `frontend/` and `backend/`.
-- The backend API is the source of truth for supported product behavior.
-- The project targets Vercel for the frontend and Railway for the backend.
+- A host configures a profile, public username, event types (with booking rules and meeting location), weekly availability with date overrides, a payout bank account, and optional calendar/conferencing integrations.
+- An invitee opens an event-specific public URL, selects an available slot, enters contact details, and either confirms a free booking or pays through Razorpay Checkout for a paid booking.
+- Paid bookings are collected into the platform's Razorpay account; Razorpay Route automatically transfers the host share to the host's linked account and the platform keeps `PLATFORM_COMMISSION_BPS` (rounded half-up). Route transfers are INR only.
+- Usage-based platform billing (Dodo) and per-host payment gateways (Stripe, PayPal, Cashfree, BTCPay, host-owned Razorpay) were removed.
+- The frontend and backend are separated into `frontend/` and `backend/`; the backend API is the source of truth. Targets: Vercel (frontend), Railway with SQLite on a persistent volume (backend).
 
-## Frontend Features
+## Frontend
 
-- Uses Next.js 16 App Router, React 19, TypeScript, TanStack Query, React Hook Form, Zod, Framer Motion, Tailwind CSS, and Lucide icons.
-- Uses feature-oriented modules under `frontend/features` for auth, booking, dashboard, event types, payments, billing, marketing, and scheduling.
-- Uses a shared fetch API client at `frontend/lib/api/client.ts`.
-- Sends `credentials: "include"` on API requests so the backend HTTP-only auth cookie is included.
-- Parses structured backend errors with `detail` and `code` and formats FastAPI validation errors for form feedback.
-- Provides a root marketing page at `/` with Threecal branding, role rotation, sign-in, and registration calls to action.
-- Provides `/register` with full name, email, and password validation.
-- Provides `/login` with email and password validation.
-- Redirects newly registered users to `/onboarding` because the backend creates accounts without usernames.
-- Redirects existing users to `/dashboard` after login when a username already exists.
-- Provides `/onboarding` for public profile setup before the main workspace can be accessed.
-- Protects workspace routes client-side through the shared dashboard shell and redirects unauthenticated users to `/login`.
-- Redirects authenticated users without a username to onboarding, except while editing `/dashboard/profile`.
-- Provides logout through the authenticated workspace navigation.
-- Clears authenticated React Query caches for availability, event types, payments, and billing on logout.
-- Provides a fixed workspace sidebar with Dashboard, Event types, Bookings, Availability, Payments, profile, and sign-out navigation.
-- Provides `/dashboard` with current billing-cycle earnings, event-type counts, public event links, payment readiness, and platform billing setup.
-- Provides `/dashboard/profile` with full name, username, timezone, biography, and avatar URL editing.
-- Updates the cached current user after a successful profile mutation.
-- Provides a timezone selector with common IANA timezone values and preserves an existing timezone not in the common list.
-- Provides `/dashboard/event-types` with event type creation and editing.
-- Supports event title, slug, description, duration, slot interval, minor-unit price, currency, and active state.
-- Displays event prices using currency formatting and explains that backend prices are integer minor units.
-- Generates links in the form `/:username/:eventSlug` for active event types.
-- Does not expose an event deletion control because the backend has no delete endpoint.
-- Provides `/dashboard/availability` with a seven-day weekly schedule editor.
-- Supports enabled or unavailable days, start time, end time, and multiple breaks per day.
-- Validates working-hour and break ordering before sending the destructive full-schedule replacement request.
-- Shows availability loading, validation, mutation-error, and save-success states.
-- Keeps the availability query cache synchronized after a successful replacement.
-- Provides `/dashboard/payments` with provider tabs for Stripe, PayPal, Razorpay, Cashfree, and BTCPay.
-- Starts Stripe and PayPal OAuth onboarding through backend-generated authorization URLs.
-- Handles the backend OAuth callback redirect to `/dashboard?payment_provider=connected` with a success message.
-- Provides credential forms for Razorpay, Cashfree, and BTCPay.
-- Validates provider-specific required fields before credential submission.
-- Explains that credentials are encrypted by the backend and are never returned to the browser.
-- Provides `/dashboard/billing` as the Dodo mandate checkout return route.
-- Provides platform billing status, current-cycle earnings, Dodo setup redirect, payment method ID input, subscription ID input, and mandate verification.
-- Provides `/dashboard/bookings` as an explicit capability notice because the backend does not expose host booking-list, status, or cancellation endpoints.
-- Provides the dynamic public booking route `/:username/:eventSlug`.
-- Loads public host and event metadata through TanStack Query.
-- Displays host name, bio, avatar when supplied, host timezone, event description, duration, and price.
-- Requests slots for a host-timezone-aligned date range and displays returned slots in the invitee's browser timezone.
-- Groups slots by local date and supports selection of individual time slots.
-- Shows slot loading, API errors, and empty availability states.
-- Opens an invitee form after a slot is selected.
-- Validates invitee name, email, timezone, and optional notes with Zod.
-- Sends the selected timezone-aware slot as `starts_at` to the backend.
-- Confirms free bookings and shows the invitee confirmation email address.
-- Creates paid bookings and immediately requests a provider checkout session.
-- Shows a ten-minute payment window based on the backend `payment_expires_at` value.
-- Treats timezone-naive SQLite expiry timestamps as UTC in the browser, matching backend payment logic.
-- Provides recovery controls for expired payment windows and failed checkout-session creation.
-- Supports checkout URLs for PayPal and BTCPay.
-- Supports Stripe Payment Element checkout when `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` is configured.
-- Supports Cashfree checkout sessions through the Cashfree browser SDK.
-- Supports Razorpay order checkout when `NEXT_PUBLIC_RAZORPAY_KEY_ID` is configured.
-- Shows a provider-submitted message after embedded payment submission while the backend webhook completes booking confirmation.
-- Provides browser checkout environment variables in `frontend/.env.example`.
-- Provides a human-oriented frontend README with routes, setup, verification, and known API limitations.
+- Next.js 16 App Router, React 19, TypeScript, TanStack Query, React Hook Form, Zod, Framer Motion, Tailwind CSS, shadcn/ui, Lucide.
+- Feature modules under `frontend/features`: auth, booking (public), bookings (host/invitee management), dashboard, event-types, integrations, marketing, payments, scheduling.
+- Shared fetch client `frontend/lib/api/client.ts` sends cookies, parses `{detail, code}` errors and FastAPI validation errors, and turns 429 into a "try again in N" message using `Retry-After`.
+- Auth: `/register`, `/login` (with "Forgot password?"), `/forgot-password`, `/reset-password?token=`, `/verify-email?token=`. New users go to `/onboarding`; workspace routes are protected client-side by the dashboard shell.
+- Dashboard shell: Dashboard, Event types, Bookings, Availability, Payments, Integrations, Settings, profile, sign-out; persistent email-verification banner with resend until verified.
+- `/dashboard`: stats including paid-bookings enabled/paused, payout warning when an active paid event exists without active payouts, public links, next bookings.
+- `/dashboard/event-types`: create/edit/delete; booking rules (buffers, minimum notice, booking window, daily limit); location (none, in person, phone, custom link, Google Meet, Zoom, Microsoft Teams).
+- `/dashboard/availability`: weekly hours with breaks; date overrides (unavailable all day or custom hours).
+- `/dashboard/bookings`: Upcoming / Past / Cancelled tabs, event filter, pagination, detail dialog, host cancel (with refund note) and reschedule (slot picker).
+- `/dashboard/payments`: bank account + KYC form (phone, category/subcategory, PAN, address) for the Razorpay Route linked account, activation status, outstanding requirements, refresh status.
+- `/dashboard/integrations`: connect/reconnect/disconnect Google Calendar, Outlook, Zoom; choose conflict calendars and destination calendar.
+- `/dashboard/settings`: email verification status/resend, change password, delete account.
+- `/dashboard/profile`: name, username (reserved route names rejected), timezone, bio, avatar upload to R2.
+- `/:username` and `/:username/:eventSlug`: public profile and booking page; slot browsing pages two weeks at a time within `max_days_in_advance`; shows the location label (custom links are hidden until booking); Razorpay Checkout then `/verify` for immediate confirmation.
+- `/bookings/manage/:bookingId?token=`: invitee self-service cancel/reschedule until the cutoff.
+- Sentry (`@sentry/nextjs`) is active only when `NEXT_PUBLIC_SENTRY_DSN` is set; PostHog analytics and exception capture remain.
+- Vitest + Testing Library tests (`pnpm test`).
 
-## Backend Features
+## Backend
 
-- Uses Python, FastAPI, SQLAlchemy, Alembic, SQLite, Pydantic v2, JWT signing, BackgroundTasks, and provider abstractions.
-- Mounts domain routers below `/api/v1` by default.
-- Exposes `GET /health` with `{"status": "ok"}`.
-- Configures CORS with credentials support for cookie-authenticated frontend requests.
-- Uses the `threecal_access_token` HTTP-only cookie for authentication.
-- Supports configurable cookie expiration, Secure flag, SameSite policy, and domain.
-- Returns application errors as `{ "detail": string, "code": string }`.
-- Provides `POST /api/v1/auth/register` with full name, email, and password validation.
-- Lowercases stored email addresses and sets the authentication cookie on registration.
-- Returns `email_already_registered` for duplicate registration.
-- Provides `POST /api/v1/auth/login` with case-insensitive email matching.
-- Returns `invalid_credentials` for incorrect login details and `inactive_account` for inactive users.
-- Provides `POST /api/v1/auth/logout` and deletes the authentication cookie.
-- Provides `GET /api/v1/users/me` for the authenticated user profile.
-- Provides `PATCH /api/v1/users/me` for full name, username, bio, timezone, and avatar URL updates.
-- Validates username format, username length, timezone names, and avatar URL length.
-- Returns `username_taken` for a duplicate public username.
-- Provides `GET /api/v1/availability` for configured weekly working hours and breaks.
-- Provides `PUT /api/v1/availability` to destructively replace the complete schedule.
-- Validates weekday range, working-hour ordering, and break ordering.
-- Includes availability exception models and schemas, but no exception router endpoint.
-- Provides `GET /api/v1/event-types` for the authenticated user's event types, including inactive types.
-- Provides `POST /api/v1/event-types` for event creation.
-- Provides `PATCH /api/v1/event-types/{event_type_id}` for full event updates.
-- Supports event title, slug, description, duration, slot interval, integer minor-unit price, currency, and active state.
-- Provides `GET /api/v1/public/{username}/{event_slug}` for active public host and event metadata.
-- Keeps host email and internal user ID out of public metadata.
-- Provides `GET /api/v1/public/{username}/{event_slug}/slots` with start date, end date, and viewer timezone query parameters.
-- Calculates slots from host weekly availability, breaks, availability exceptions already stored in the database, current time, and pending or confirmed bookings.
-- Converts returned slots into the requested viewer timezone.
-- Provides `POST /api/v1/public/{username}/{event_slug}/bookings` for public booking creation.
-- Validates invitee name, email, timezone, notes, and timezone-aware appointment start time.
-- Creates free bookings as `CONFIRMED`.
-- Creates paid bookings as `PENDING` with a ten-minute payment expiration window.
-- Requires platform billing readiness and a connected doctor payment provider before paid booking creation.
-- Prevents slot conflicts with an application error code of `slot_unavailable`.
-- Queues booking confirmation email delivery through the email abstraction and FastAPI BackgroundTasks.
-- Provides `GET /api/v1/payments/config` without returning provider secrets.
-- Provides `POST /api/v1/payments/config` for Razorpay, Cashfree, and BTCPay credential onboarding.
-- Rejects credential onboarding for Stripe and PayPal because those providers use OAuth.
-- Registers provider webhooks before saving encrypted provider credentials.
-- Provides `GET /api/v1/payments/oauth/{provider}/authorize` for Stripe and PayPal OAuth.
-- Signs and expires provider-bound OAuth state tokens.
-- Provides `GET /api/v1/payments/oauth/{provider}/callback` as a public callback that saves the provider connection and redirects to the frontend dashboard.
-- Provides `POST /api/v1/payments/bookings/{booking_id}/checkout` for public paid-booking checkout creation.
-- Returns provider, provider payment ID, optional client secret, and optional checkout URL.
-- Supports Stripe, Razorpay, Cashfree, PayPal, and BTCPay gateway abstractions.
-- Provides provider-specific webhook verification and success-event processing.
-- Provides `POST /api/v1/webhooks/{provider}/{doctor_id}` with signature validation and duplicate-event handling.
-- Confirms pending bookings from verified payment webhooks.
-- Adds confirmed booking amounts to the provider's current platform billing cycle.
-- Provides `GET /api/v1/billing/me` and creates the billing record when needed.
-- Provides `POST /api/v1/billing/setup` to create or reuse a Dodo customer and return a mandate checkout URL.
-- Provides `POST /api/v1/billing/setup/complete` to verify payment-method and subscription ownership.
-- Exposes current cycle start, current cycle earnings, and billing readiness without exposing the Dodo subscription ID.
-- Provides `POST /api/v1/billing/run-cycle` for Railway Cron with an `x-cron-secret` header.
-- Calculates volume-based platform fees in minor units with the implemented billing tiers.
-- Keeps billing cycle processing idempotent and only advances cycles after successful fee processing.
-- Supports console or SMTP email providers through an email abstraction.
-- Encrypts doctor payment credentials and webhook secrets at rest.
-- Imports all domain models before automatic table creation so SQLAlchemy metadata includes domain tables.
+- Python, FastAPI, SQLAlchemy, Alembic, SQLite, Pydantic v2, JWT cookie auth. Routes under `/api/v1`; `GET /health`.
+- Domains under `backend/app/domains`: auth, users, availability, event_types, bookings, payments, webhooks, email, notifications, calendars, conferencing, backups.
+- Core: `config`, `database`, `security`, `encryption`, `errors` (AppError `{detail, code}` with optional headers, JSON 500 handler), `rate_limit` (pluggable backend, in-memory default), `events` (in-process event bus), `oauth` (signed OAuth state), `logging` (JSON logs, request IDs, optional Loki), `observability` (Sentry).
+- Auth: register (sends verification email), login, logout, verify-email, resend-verification, forgot-password (always 202), reset-password. Single-use hashed tokens in `auth_tokens`. `users.token_version` is embedded in the JWT so password change/reset revokes other sessions.
+- Users: `GET/PATCH /users/me`, avatar upload, `POST /users/me/password`, `DELETE /users/me` (blocked by upcoming confirmed bookings; revokes integration tokens; deletes dependents explicitly because SQLite does not enforce cascades).
+- Availability: weekly hours with breaks; `GET/PUT/DELETE /availability/overrides`. `AvailabilityService.slots` applies overrides, breaks, buffers, minimum notice, booking window, daily limit, active bookings, and external calendar busy times (cached, fail-open).
+- Bookings: public profile/page/slots/create; host `GET /bookings`, `GET /bookings/{id}`, cancel, reschedule, reschedule slots; invitee `GET /public/bookings/{id}`, slots, cancel, reschedule using an HMAC manage token (derived from `JWT_SECRET_KEY`; only its hash is stored). Invitee changes allowed until `INVITEE_CHANGE_CUTOFF_HOURS`.
+- Booking times are stored in UTC. Only PENDING/CONFIRMED bookings hold a slot (partial unique index `uq_booking_host_start_active`); pending bookings stop holding their slot when the 10-minute payment window closes and are marked EXPIRED by the scheduler or on the next booking at that time.
+- Payments: `GET/POST/PATCH /payments/account`, `POST /payments/account/sync`, `POST /payments/bookings/{id}/checkout` (Razorpay order with Route transfer), `POST /payments/bookings/{id}/verify`. `RefundService.refund_booking` issues a full refund with transfer reversal. Paid bookings require an activated linked account (`host_payments_not_ready`).
+- Webhooks: `POST /webhooks/razorpay` (signature-verified, idempotent) handles payment captured/order paid, refunds, and Route product activation. Payments arriving after expiry confirm the booking if the slot is still free, otherwise they are refunded automatically.
+- Events: `booking.confirmed`, `booking.cancelled`, `booking.rescheduled` published after commit. Subscribers: conferencing (priority 10, sets `bookings.meeting_url`), calendar sync (20), email notifications (100).
+- Notifications: HTML + text emails with `.ics` (REQUEST/CANCEL, stable UID, SEQUENCE) for invitee confirmation, host new booking, cancellation, reschedule, and reminders at `REMINDER_OFFSETS_MINUTES`. Email providers: console and SMTP (Brevo), supporting HTML and attachments.
+- Calendars: Google Calendar and Microsoft Graph OAuth connections, conflict calendars, destination calendar, event create/update/delete on booking events, token refresh, `reconnect_required` status.
+- Conferencing: Zoom OAuth meetings; Google Meet and Teams via the calendar event; custom links.
+- Jobs: in-process scheduler (`SCHEDULER_ENABLED=true`) runs expire-pending-bookings, booking reminders, and daily SQLite backup to R2 with retention. CLI equivalents under `python -m app.jobs.*`.
+- Deployment: `backend/Dockerfile`, `railway.toml`, entrypoint runs migrations then uvicorn. CI in `.github/workflows/ci.yml`.
 
 ## Missing Or Needed Features
 
-- Add Google, Microsoft, and Apple Calendar integration endpoints, OAuth flows, token storage, availability syncing, and frontend connection screens.
-- Add an authenticated host booking-list endpoint so `/dashboard/bookings` can show upcoming, past, pending, confirmed, cancelled, and expired bookings.
-- Add booking status lookup or polling so the public frontend can reflect asynchronous webhook confirmation after payment.
-- Add booking cancellation endpoints, cancellation policy data, and cancellation email handling.
-- Add invitee booking lookup or secure booking tokens for confirmation pages and self-service management.
-- Add a backend endpoint for payment status lookup or a signed provider return flow.
-- Add provider-specific post-payment return handling for PayPal, BTCPay, Cashfree, Razorpay, and Stripe.
-- Add a secure checkout ownership or client-token mechanism; the current checkout endpoint accepts a booking UUID publicly and does not verify invitee ownership.
-- Add idempotency keys to paid checkout creation to prevent repeated checkout calls from creating multiple provider payments.
-- Add an event-type deletion or archival endpoint if hard deletion is required; the current frontend only supports active or inactive state.
-- Add availability exception CRUD endpoints for holidays, special hours, and unavailable dates.
-- Add profile image upload and signed Cloudflare R2 upload endpoints; the current frontend only stores an avatar URL.
-- Add email verification, password reset, password change, account deletion, and account recovery flows.
-- Add social login endpoints if Google or other OAuth login is required; the current auth OAuth model is not exposed as a login API.
-- Add server-side route protection or a Next.js 16 `proxy.ts` optimistic redirect if stronger pre-render navigation protection is needed; current protection is client-side.
-- Add frontend automated tests for API clients, forms, dashboard flows, public booking, countdown behavior, and provider checkout adapters.
-- Add backend integration tests for every router contract, provider error path, OAuth callback, billing setup, and slot edge case.
-- Add runtime response validation for critical frontend API responses if untrusted API deployments require it; current API generics are compile-time casts.
-- Add a production-safe mechanism for Stripe, Cashfree, and Razorpay public checkout configuration instead of relying only on frontend environment variables.
-- Add frontend handling for successful provider returns that persists a user-visible payment result across full-page redirects.
-- Correct or formalize multi-currency billing behavior; current platform earnings are aggregated as integer minor units while event currencies are configurable.
-- Add database-backed expiration handling for stale pending bookings; pending bookings currently participate in slot blocking until backend expiration logic is added.
-- Correct the backend behavior that queues a confirmation email for a paid booking while it is still pending payment.
-- Add structured pagination and filtering once host booking management exists.
-- Add PostHog analytics instrumentation, Sentry error reporting, and Grafana-oriented structured logging.
-- Add Cloudflare R2 backup automation for the SQLite Railway persistent volume.
-- Move from SQLite to PostgreSQL when multi-instance concurrency and production scale require it.
-- Configure stable production secrets for JWT signing, credential encryption, cookie security, CORS, provider OAuth, Dodo billing, SMTP, and webhook verification.
-- Configure and verify Railway Cron for the daily idempotent billing cycle job.
-- Resolve the product policy for providers above the highest volume-billing tier, including whether bookings lock or earnings continue tracking.
+- Verify Razorpay Route against live test mode: stakeholder update path, linked-account PATCH fields, `product.route.*` webhook payload shape, `reverse_all` format.
+- Verify Google, Microsoft, and Zoom integrations against real OAuth apps; Google Meet links returned as "pending" are not re-fetched.
+- Verify real SMTP delivery and calendar-client rendering of `.ics` invites.
+- Apple/iCloud calendar (CalDAV) is not supported.
+- Social login is not exposed (OAuthAccount model exists but no login flow).
+- Route protection is client-side only; a Next.js 16 `proxy.ts` redirect could be added.
+- The rate limiter, busy-time cache, event bus, and scheduler are per process; move to Redis/a queue and Railway cron when moving to PostgreSQL and multiple replicas.
+- Bookings created before migration `20260803_0012` have no invitee manage token; bookings created before `20260801_0007` may have non-UTC start times stored.
+- Multi-currency paid events cannot use Route (INR only); the UI should restrict paid event currency accordingly.
+- Configure production secrets: JWT, credentials encryption, cookies, CORS, Razorpay keys and webhook secret, SMTP, R2, Sentry, Loki, Google/Microsoft/Zoom OAuth.

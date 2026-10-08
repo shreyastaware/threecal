@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import Annotated, Literal
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, NoDecode, SettingsConfigDict
 
 
@@ -25,6 +25,14 @@ class Settings(BaseSettings):
     auth_cookie_secure: bool = False
     auth_cookie_samesite: Literal["lax", "strict", "none"] = "lax"
     auth_cookie_domain: str | None = None
+    # Single-use tokens emailed for account recovery and email ownership checks.
+    email_verification_token_ttl_hours: int = 48
+    password_reset_token_ttl_minutes: int = 60
+
+    # Abuse protection. Only trust X-Forwarded-For behind a known proxy (Railway).
+    rate_limit_enabled: bool = True
+    rate_limit_backend: Literal["memory"] = "memory"
+    trust_proxy_headers: bool = False
 
     cors_origins: Annotated[list[str], NoDecode] = ["http://localhost:3000"]
 
@@ -47,24 +55,55 @@ class Settings(BaseSettings):
     r2_bucket_name: str = ""
     r2_public_base_url: str = ""
 
-    stripe_client_id: str = ""
-    stripe_client_secret: str = ""
-    paypal_client_id: str = ""
-    paypal_client_secret: str = ""
-    paypal_api_url: str = "https://api-m.sandbox.paypal.com"
-    paypal_authorize_url: str = "https://www.sandbox.paypal.com/signin/authorize"
-    razorpay_client_id: str = ""
-    razorpay_client_secret: str = ""
-    razorpay_oauth_mode: Literal["test", "live"] = "test"
-    cashfree_oauth_client_id: str = ""
-    cashfree_partner_api_key: str = ""
-    cashfree_api_url: str = "https://api-sandbox.cashfree.com"
-    cashfree_payments_url: str = "https://sandbox.cashfree.com"
+    # Observability: Sentry error tracking (disabled when SENTRY_DSN is empty).
+    sentry_dsn: str = ""
+    sentry_traces_sample_rate: float = 0.0
+    sentry_environment: str = ""
+    sentry_release: str = ""
 
-    dodo_payments_api_key: str = ""
-    dodo_payments_api_url: str = "https://test.dodopayments.com"
-    dodo_payments_product_id: str = ""
-    billing_cron_secret: str = "development-billing-cron-secret"
+    # Logging: JSON logs to stdout, optionally pushed to Grafana Loki.
+    log_level: str = "INFO"
+    loki_url: str = ""
+    loki_username: str = ""
+    loki_password: str = ""
+
+    # Database backups to Cloudflare R2 (falls back to R2_BUCKET_NAME).
+    backup_r2_bucket_name: str = ""
+    backup_prefix: str = "backups/"
+    backup_retention_days: int = 30
+    backup_hour_utc: int = Field(default=3, ge=0, le=23)
+
+    # In-process job scheduler (expire pending bookings, daily backups). Enable on the single API instance.
+    scheduler_enabled: bool = False
+    expire_pending_bookings_interval_minutes: int = Field(default=5, ge=1)
+
+    # Booking notifications. Invitees may cancel/reschedule until this many hours before the start.
+    invitee_change_cutoff_hours: int = Field(default=24, ge=0)
+    # Reminder emails, in minutes before the start (comma-separated in the environment).
+    reminder_offsets_minutes: Annotated[list[int], NoDecode] = [1440, 60]
+    send_booking_reminders_interval_minutes: int = Field(default=5, ge=1)
+    # A reminder whose send time passed more than this long ago is skipped (never sent late).
+    reminder_grace_minutes: int = Field(default=30, ge=1)
+
+    # Invitees pay into the platform Razorpay account; Route splits each payment
+    # between the platform commission and the host's linked account.
+    razorpay_key_id: str = ""
+    razorpay_key_secret: str = ""
+    razorpay_webhook_secret: str = ""
+    razorpay_api_url: str = "https://api.razorpay.com"
+    # Platform commission in basis points (100 = 1%).
+    platform_commission_bps: int = Field(default=0, ge=0, le=10_000)
+
+    # Calendar and conferencing integrations (OAuth apps). Endpoints return 503 when unset.
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    microsoft_client_id: str = ""
+    microsoft_client_secret: str = ""
+    microsoft_tenant: str = "common"
+    zoom_client_id: str = ""
+    zoom_client_secret: str = ""
+    # How long busy times from connected calendars are cached per host and range.
+    calendar_busy_cache_seconds: int = Field(default=60, ge=0)
 
     @field_validator("cors_origins", mode="before")
     @classmethod
@@ -72,6 +111,21 @@ class Settings(BaseSettings):
         if isinstance(value, str):
             return [origin.strip() for origin in value.split(",") if origin.strip()]
         return value
+
+    @field_validator("reminder_offsets_minutes", mode="before")
+    @classmethod
+    def parse_reminder_offsets(cls, value: object) -> object:
+        if isinstance(value, str):
+            return [int(item.strip()) for item in value.split(",") if item.strip()]
+        return value
+
+    @field_validator("reminder_offsets_minutes")
+    @classmethod
+    def validate_reminder_offsets(cls, value: list[int]) -> list[int]:
+        if any(offset <= 0 for offset in value):
+            raise ValueError("Reminder offsets must be positive minutes.")
+        # Largest first, without duplicates.
+        return sorted(set(value), reverse=True)
 
 
 @lru_cache
