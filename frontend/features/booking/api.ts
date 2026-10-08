@@ -1,3 +1,4 @@
+import type { LocationType } from "@/features/event-types/api";
 import { apiRequest } from "@/lib/api/client";
 
 export type PublicHost = {
@@ -19,6 +20,10 @@ export type PublicEventType = {
   currency: string;
   is_active: boolean;
   is_default: boolean;
+  /** Booking window in days from today; null means unlimited. */
+  max_days_in_advance: number | null;
+  location_type?: LocationType;
+  location_value?: string | null;
 };
 
 export type PublicPage = {
