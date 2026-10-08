@@ -1,304 +1,189 @@
-import base64
-import hashlib
-import hmac
-import json
-import secrets
-import time
+"""Provider-agnostic payment and payout abstractions.
+
+The platform collects every invitee payment on its own account and splits it
+with the host through a payout provider (Razorpay Route today). New providers
+plug in by implementing ``PaymentGateway`` and registering in
+``get_payment_gateway``.
+"""
+
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
-import httpx
-
-from app.domains.payments.models import PaymentProvider
+from app.core.config import settings
+from app.domains.payments.models import BusinessType, PaymentProvider
 
 
 class ProviderAPIError(RuntimeError):
-    pass
+    """A payment provider rejected a request or could not be reached."""
+
+    def __init__(self, message: str, *, code: str | None = None, field: str | None = None) -> None:
+        super().__init__(message)
+        self.message = message
+        self.code = code
+        self.field = field
+        # Provider ids created before the failure, so onboarding can resume later.
+        self.partial_state: "LinkedAccountState | None" = None
 
 
 @dataclass(frozen=True)
-class PaymentRequest:
-    booking_id: str
-    doctor_id: str
+class Address:
+    street1: str
+    street2: str | None
+    city: str
+    state: str
+    postal_code: str
+    country: str = "IN"
+
+
+@dataclass(frozen=True)
+class HostPayoutProfile:
+    """Everything a payout provider needs to onboard a host's bank account."""
+
+    reference_id: str
+    email: str
+    phone: str
+    contact_name: str
+    legal_business_name: str
+    business_type: BusinessType
+    category: str
+    subcategory: str
+    address: Address
+    pan: str | None
+    account_number: str
+    ifsc_code: str
+    beneficiary_name: str
+
+
+@dataclass(frozen=True)
+class PayoutRequirement:
+    field_reference: str
+    reason_code: str
+    status: str
+    description: str | None = None
+
+
+@dataclass(frozen=True)
+class LinkedAccountState:
+    linked_account_id: str | None
+    stakeholder_id: str | None
+    product_configuration_id: str | None
+    activation_status: str
+    requirements: list[PayoutRequirement] = field(default_factory=list)
+
+
+@dataclass(frozen=True)
+class OrderTransfer:
+    destination_account_id: str
     amount_minor: int
     currency: str
-    customer_name: str
-    customer_email: str
+    notes: dict[str, str]
 
 
 @dataclass(frozen=True)
-class PaymentSession:
-    payment_id: str
-    client_secret: str | None = None
-    checkout_url: str | None = None
-    public_key: str | None = None
+class OrderRequest:
+    amount_minor: int
+    currency: str
+    receipt: str
+    notes: dict[str, str]
+    transfers: list[OrderTransfer]
 
 
-def format_minor_amount(amount_minor: int) -> str:
-    return f"{amount_minor // 100}.{amount_minor % 100:02d}"
+@dataclass(frozen=True)
+class Order:
+    order_id: str
+    amount_minor: int
+    currency: str
+
+
+@dataclass(frozen=True)
+class Refund:
+    refund_id: str
+    status: str
+
+
+@dataclass(frozen=True)
+class GatewayEvent:
+    """A normalized provider webhook event."""
+
+    event_id: str
+    event_type: str
+    # Payment captured / order paid.
+    payment_id: str | None = None
+    order_id: str | None = None
+    amount_minor: int | None = None
+    booking_id: str | None = None
+    # Linked account activation updates.
+    linked_account_id: str | None = None
+    activation_status: str | None = None
+    requirements: list[PayoutRequirement] | None = None
+    # Refund updates.
+    refund_id: str | None = None
+    refund_status: str | None = None
+
+    @property
+    def is_payment_success(self) -> bool:
+        return self.payment_id is not None and self.amount_minor is not None
+
+    @property
+    def is_payout_status(self) -> bool:
+        return self.linked_account_id is not None and self.activation_status is not None
+
+    @property
+    def is_refund_update(self) -> bool:
+        return self.refund_id is not None and self.refund_status is not None
 
 
 class PaymentGateway(ABC):
+    """Platform-level gateway: collects payments and routes the host share."""
+
     provider: PaymentProvider
+    public_key: str
 
-    def __init__(self, credentials: dict[str, str], account_id: str | None = None) -> None:
-        self.credentials = credentials
-        self.account_id = account_id
+    # Payouts (host onboarding)
+    @abstractmethod
+    def onboard_host(self, profile: HostPayoutProfile, current: LinkedAccountState) -> LinkedAccountState:
+        """Create or resume onboarding and return the latest provider state."""
 
     @abstractmethod
-    def register_webhook(self, endpoint_url: str, proposed_secret: str) -> str:
+    def update_host(self, profile: HostPayoutProfile, current: LinkedAccountState) -> LinkedAccountState:
+        """Push changed host details (including bank account) to the provider."""
+
+    @abstractmethod
+    def fetch_host_status(self, current: LinkedAccountState) -> LinkedAccountState:
+        """Refresh the activation status of an onboarded host."""
+
+    # Collections
+    @abstractmethod
+    def create_order(self, request: OrderRequest) -> Order:
         raise NotImplementedError
 
     @abstractmethod
-    def create_payment(self, request: PaymentRequest) -> PaymentSession:
+    def verify_checkout_signature(self, order_id: str, payment_id: str, signature: str) -> bool:
         raise NotImplementedError
 
     @abstractmethod
-    def verify_webhook(self, body: bytes, headers: dict[str, str], secret: str) -> bool:
+    def verify_webhook(self, body: bytes, headers: dict[str, str]) -> bool:
         raise NotImplementedError
 
-    @staticmethod
-    def _json(response: httpx.Response) -> dict[str, Any]:
-        try:
-            response.raise_for_status()
-            result = response.json()
-        except (httpx.HTTPError, ValueError) as exc:
-            raise ProviderAPIError("The payment provider rejected the request.") from exc
-        if not isinstance(result, dict):
-            raise ProviderAPIError("The payment provider returned an invalid response.")
-        return result
+    @abstractmethod
+    def parse_webhook(self, payload: dict[str, Any], headers: dict[str, str]) -> GatewayEvent | None:
+        raise NotImplementedError
+
+    @abstractmethod
+    def refund(self, payment_id: str, amount_minor: int, *, reverse_transfers: bool, notes: dict[str, str]) -> Refund:
+        raise NotImplementedError
 
 
-class StripeGateway(PaymentGateway):
-    provider = PaymentProvider.STRIPE
+def get_payment_gateway() -> PaymentGateway | None:
+    """Return the configured platform gateway, or None when payments are not configured."""
+    if not settings.razorpay_key_id or not settings.razorpay_key_secret:
+        return None
+    from app.domains.payments.razorpay_route import RazorpayRouteGateway
 
-    def _auth(self) -> tuple[str, str]:
-        return (self.credentials["access_token"], "")
-
-    def register_webhook(self, endpoint_url: str, proposed_secret: str) -> str:
-        response = httpx.post(
-            "https://api.stripe.com/v1/webhook_endpoints",
-            auth=self._auth(),
-            data={"url": endpoint_url, "enabled_events[]": "payment_intent.succeeded"},
-            timeout=15,
-        )
-        return str(self._json(response).get("secret") or proposed_secret)
-
-    def create_payment(self, request: PaymentRequest) -> PaymentSession:
-        response = httpx.post(
-            "https://api.stripe.com/v1/payment_intents",
-            auth=self._auth(),
-            data={
-                "amount": request.amount_minor,
-                "currency": request.currency.lower(),
-                "metadata[booking_id]": request.booking_id,
-                "metadata[doctor_id]": request.doctor_id,
-                "receipt_email": request.customer_email,
-                "automatic_payment_methods[enabled]": "true",
-            },
-            timeout=15,
-        )
-        payload = self._json(response)
-        return PaymentSession(
-            str(payload["id"]),
-            client_secret=str(payload["client_secret"]),
-            public_key=self.credentials.get("publishable_key"),
-        )
-
-    def verify_webhook(self, body: bytes, headers: dict[str, str], secret: str) -> bool:
-        signature = headers.get("stripe-signature", "")
-        parts = dict(item.split("=", 1) for item in signature.split(",") if "=" in item)
-        try:
-            timestamp = int(parts["t"])
-        except (KeyError, ValueError):
-            return False
-        if abs(int(time.time()) - timestamp) > 300:
-            return False
-        expected = hmac.new(secret.encode(), f"{timestamp}.".encode() + body, hashlib.sha256).hexdigest()
-        return hmac.compare_digest(expected, parts.get("v1", ""))
-
-
-class RazorpayGateway(PaymentGateway):
-    provider = PaymentProvider.RAZORPAY
-
-    def _auth(self) -> tuple[str, str]:
-        return self.credentials["api_key"], self.credentials["secret_key"]
-
-    def _headers(self) -> dict[str, str]:
-        access_token = self.credentials.get("access_token")
-        return {"Authorization": f"Bearer {access_token}"} if access_token else {}
-
-    def register_webhook(self, endpoint_url: str, proposed_secret: str) -> str:
-        access_token = self.credentials.get("access_token")
-        response = httpx.post(
-            "https://api.razorpay.com/v1/webhooks",
-            auth=None if access_token else self._auth(),
-            headers=self._headers(),
-            json={"url": endpoint_url, "secret": proposed_secret, "active": True, "events": ["order.paid"]},
-            timeout=15,
-        )
-        self._json(response)
-        return proposed_secret
-
-    def create_payment(self, request: PaymentRequest) -> PaymentSession:
-        access_token = self.credentials.get("access_token")
-        response = httpx.post(
-            "https://api.razorpay.com/v1/orders",
-            auth=None if access_token else self._auth(),
-            headers=self._headers(),
-            json={"amount": request.amount_minor, "currency": request.currency, "notes": {"booking_id": request.booking_id, "doctor_id": request.doctor_id}},
-            timeout=15,
-        )
-        payload = self._json(response)
-        return PaymentSession(
-            str(payload["id"]),
-            public_key=self.credentials.get("public_token"),
-        )
-
-    def verify_webhook(self, body: bytes, headers: dict[str, str], secret: str) -> bool:
-        expected = hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-        return hmac.compare_digest(expected, headers.get("x-razorpay-signature", ""))
-
-
-class CashfreeGateway(PaymentGateway):
-    provider = PaymentProvider.CASHFREE
-
-    def _headers(self) -> dict[str, str]:
-        access_token = self.credentials.get("access_token")
-        if access_token:
-            return {
-                "Authorization": f"Bearer {access_token}",
-                "x-api-version": "2025-01-01",
-            }
-        return {"x-client-id": self.credentials["api_key"], "x-client-secret": self.credentials["secret_key"], "x-api-version": "2025-01-01"}
-
-    def register_webhook(self, endpoint_url: str, proposed_secret: str) -> str:
-        if self.credentials.get("access_token"):
-            return self.credentials["partner_api_key"]
-        response = httpx.post(f"{self.credentials.get('payments_url', 'https://api.cashfree.com')}/pg/webhooks", headers=self._headers(), json={"webhook_url": endpoint_url}, timeout=15)
-        self._json(response)
-        return proposed_secret
-
-    def create_payment(self, request: PaymentRequest) -> PaymentSession:
-        response = httpx.post(
-            f"{self.credentials.get('payments_url', 'https://api.cashfree.com')}/pg/orders",
-            headers=self._headers(),
-            json={
-                "order_id": request.booking_id,
-                "order_amount": format_minor_amount(request.amount_minor),
-                "order_currency": request.currency,
-                "customer_details": {"customer_id": request.booking_id, "customer_name": request.customer_name, "customer_email": request.customer_email, "customer_phone": "9999999999"},
-                "order_tags": {"booking_id": request.booking_id, "doctor_id": request.doctor_id},
-            },
-            timeout=15,
-        )
-        payload = self._json(response)
-        return PaymentSession(str(payload["order_id"]), client_secret=str(payload["payment_session_id"]))
-
-    def verify_webhook(self, body: bytes, headers: dict[str, str], secret: str) -> bool:
-        timestamp = headers.get("x-webhook-timestamp", "")
-        digest = hmac.new(secret.encode(), timestamp.encode() + body, hashlib.sha256).digest()
-        return hmac.compare_digest(base64.b64encode(digest).decode(), headers.get("x-webhook-signature", ""))
-
-
-class PayPalGateway(PaymentGateway):
-    provider = PaymentProvider.PAYPAL
-
-    def register_webhook(self, endpoint_url: str, proposed_secret: str) -> str:
-        response = httpx.post(
-            f"{self.credentials['api_url']}/v1/notifications/webhooks",
-            headers={"Authorization": f"Bearer {self.credentials['access_token']}"},
-            json={"url": endpoint_url, "event_types": [{"name": "PAYMENT.CAPTURE.COMPLETED"}]},
-            timeout=15,
-        )
-        payload = self._json(response)
-        return str(payload.get("id") or proposed_secret)
-
-    def create_payment(self, request: PaymentRequest) -> PaymentSession:
-        response = httpx.post(
-            f"{self.credentials['api_url']}/v2/checkout/orders",
-            headers={"Authorization": f"Bearer {self.credentials['access_token']}", "PayPal-Request-Id": request.booking_id},
-            json={
-                "intent": "CAPTURE",
-                "purchase_units": [{"custom_id": request.booking_id, "invoice_id": request.booking_id, "amount": {"currency_code": request.currency, "value": format_minor_amount(request.amount_minor)}}],
-            },
-            timeout=15,
-        )
-        payload = self._json(response)
-        approve = next((link.get("href") for link in payload.get("links", []) if link.get("rel") == "approve"), None)
-        return PaymentSession(str(payload["id"]), checkout_url=str(approve) if approve else None)
-
-    def verify_webhook(self, body: bytes, headers: dict[str, str], secret: str) -> bool:
-        try:
-            event = json.loads(body)
-        except ValueError:
-            return False
-        try:
-            response = httpx.post(
-                f"{self.credentials['api_url']}/v1/notifications/verify-webhook-signature",
-                headers={"Authorization": f"Bearer {self.credentials['access_token']}"},
-                json={
-                    "auth_algo": headers.get("paypal-auth-algo"),
-                    "cert_url": headers.get("paypal-cert-url"),
-                    "transmission_id": headers.get("paypal-transmission-id"),
-                    "transmission_sig": headers.get("paypal-transmission-sig"),
-                    "transmission_time": headers.get("paypal-transmission-time"),
-                    "webhook_id": secret,
-                    "webhook_event": event,
-                },
-                timeout=15,
-            )
-            return response.json().get("verification_status") == "SUCCESS"
-        except (httpx.HTTPError, ValueError, AttributeError):
-            return False
-
-
-class BTCPayGateway(PaymentGateway):
-    provider = PaymentProvider.BTCPAY
-
-    def _headers(self) -> dict[str, str]:
-        return {"Authorization": f"token {self.credentials['api_key']}"}
-
-    def register_webhook(self, endpoint_url: str, proposed_secret: str) -> str:
-        base = str(self.account_id).rstrip("/")
-        response = httpx.post(
-            f"{base}/api/v1/stores/{self.credentials['store_id']}/webhooks",
-            headers=self._headers(),
-            json={"url": endpoint_url, "secret": proposed_secret, "enabled": True, "automaticRedelivery": True},
-            timeout=15,
-        )
-        self._json(response)
-        return proposed_secret
-
-    def create_payment(self, request: PaymentRequest) -> PaymentSession:
-        base = str(self.account_id).rstrip("/")
-        response = httpx.post(
-            f"{base}/api/v1/stores/{self.credentials['store_id']}/invoices",
-            headers=self._headers(),
-            json={"amount": format_minor_amount(request.amount_minor), "currency": request.currency, "metadata": {"booking_id": request.booking_id, "doctor_id": request.doctor_id, "buyerEmail": request.customer_email}},
-            timeout=15,
-        )
-        payload = self._json(response)
-        return PaymentSession(str(payload["id"]), checkout_url=str(payload["checkoutLink"]))
-
-    def verify_webhook(self, body: bytes, headers: dict[str, str], secret: str) -> bool:
-        expected = "sha256=" + hmac.new(secret.encode(), body, hashlib.sha256).hexdigest()
-        return hmac.compare_digest(expected, headers.get("btcpay-sig", ""))
-
-
-GATEWAYS: dict[PaymentProvider, type[PaymentGateway]] = {
-    PaymentProvider.STRIPE: StripeGateway,
-    PaymentProvider.RAZORPAY: RazorpayGateway,
-    PaymentProvider.CASHFREE: CashfreeGateway,
-    PaymentProvider.PAYPAL: PayPalGateway,
-    PaymentProvider.BTCPAY: BTCPayGateway,
-}
-
-
-def create_gateway(provider: PaymentProvider, credentials: dict[str, str], account_id: str | None = None) -> PaymentGateway:
-    return GATEWAYS[provider](credentials, account_id)
-
-
-def generate_webhook_secret() -> str:
-    return secrets.token_urlsafe(32)
+    return RazorpayRouteGateway(
+        key_id=settings.razorpay_key_id,
+        key_secret=settings.razorpay_key_secret,
+        webhook_secret=settings.razorpay_webhook_secret,
+        api_url=settings.razorpay_api_url,
+    )

@@ -1,54 +1,14 @@
 import json
 import uuid
+from dataclasses import asdict
+from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.encryption import decrypt_secret, encrypt_secret
-from app.domains.payments.models import (
-    BusinessType,
-    DoctorPaymentConfig,
-    PaymentAccount,
-    PaymentProvider,
-)
-
-
-class PaymentConfigRepository:
-    def __init__(self, db: Session) -> None:
-        self.db = db
-
-    def get_for_doctor(self, doctor_id: uuid.UUID) -> DoctorPaymentConfig | None:
-        return self.db.scalar(select(DoctorPaymentConfig).where(DoctorPaymentConfig.doctor_id == doctor_id))
-
-    def create(
-        self,
-        doctor_id: uuid.UUID,
-        provider: PaymentProvider,
-        credentials: dict[str, str],
-        account_id: str | None,
-        webhook_secret: str,
-    ) -> DoctorPaymentConfig:
-        config = DoctorPaymentConfig(
-            doctor_id=doctor_id,
-            provider=provider,
-            account_id=account_id,
-            encrypted_api_key=encrypt_secret(json.dumps(credentials)),
-            encrypted_webhook_secret=encrypt_secret(webhook_secret),
-        )
-        self.db.add(config)
-        self.db.flush()
-        return config
-
-    @staticmethod
-    def credentials(config: DoctorPaymentConfig) -> dict[str, str]:
-        value = json.loads(decrypt_secret(config.encrypted_api_key))
-        if not isinstance(value, dict) or not all(isinstance(key, str) and isinstance(item, str) for key, item in value.items()):
-            raise ValueError("Stored payment credentials have an invalid format.")
-        return value
-
-    @staticmethod
-    def webhook_secret(config: DoctorPaymentConfig) -> str:
-        return decrypt_secret(config.encrypted_webhook_secret)
+from app.domains.payments.gateways import LinkedAccountState, PayoutRequirement
+from app.domains.payments.models import LinkedAccountStatus, PaymentAccount
 
 
 class PaymentAccountRepository:
@@ -60,27 +20,24 @@ class PaymentAccountRepository:
             select(PaymentAccount).where(PaymentAccount.user_id == user_id)
         )
 
+    def get_by_linked_account_id(self, linked_account_id: str) -> PaymentAccount | None:
+        return self.db.scalar(
+            select(PaymentAccount).where(PaymentAccount.linked_account_id == linked_account_id)
+        )
+
     def create(
         self,
         user_id: uuid.UUID,
         *,
-        account_name: str,
-        account_email: str,
-        business_type: BusinessType,
-        business_name: str,
-        branch_ifsc_code: str,
         account_number: str,
-        beneficiary_name: str,
+        pan: str | None,
+        **fields: Any,
     ) -> PaymentAccount:
         account = PaymentAccount(
             user_id=user_id,
-            account_name=account_name,
-            account_email=account_email,
-            business_type=business_type,
-            business_name=business_name,
-            branch_ifsc_code=branch_ifsc_code,
             encrypted_account_number=encrypt_secret(account_number),
-            beneficiary_name=beneficiary_name,
+            encrypted_pan=encrypt_secret(pan) if pan else None,
+            **fields,
         )
         self.db.add(account)
         self.db.flush()
@@ -90,24 +47,55 @@ class PaymentAccountRepository:
     def update(
         account: PaymentAccount,
         *,
-        account_name: str,
-        account_email: str,
-        business_type: BusinessType,
-        business_name: str,
-        branch_ifsc_code: str,
         account_number: str | None,
-        beneficiary_name: str,
+        pan: str | None,
+        **fields: Any,
     ) -> PaymentAccount:
-        account.account_name = account_name
-        account.account_email = account_email
-        account.business_type = business_type
-        account.business_name = business_name
-        account.branch_ifsc_code = branch_ifsc_code
-        account.beneficiary_name = beneficiary_name
+        for name, value in fields.items():
+            setattr(account, name, value)
         if account_number:
             account.encrypted_account_number = encrypt_secret(account_number)
+        if pan:
+            account.encrypted_pan = encrypt_secret(pan)
         return account
 
     @staticmethod
     def account_number(account: PaymentAccount) -> str:
         return decrypt_secret(account.encrypted_account_number)
+
+    @staticmethod
+    def pan(account: PaymentAccount) -> str | None:
+        return decrypt_secret(account.encrypted_pan) if account.encrypted_pan else None
+
+    @staticmethod
+    def linked_state(account: PaymentAccount) -> LinkedAccountState:
+        return LinkedAccountState(
+            linked_account_id=account.linked_account_id,
+            stakeholder_id=account.stakeholder_id,
+            product_configuration_id=account.product_configuration_id,
+            activation_status=account.activation_status or LinkedAccountStatus.NOT_STARTED.value,
+            requirements=PaymentAccountRepository.requirements(account),
+        )
+
+    @staticmethod
+    def apply_linked_state(account: PaymentAccount, state: LinkedAccountState) -> PaymentAccount:
+        account.linked_account_id = state.linked_account_id
+        account.stakeholder_id = state.stakeholder_id
+        account.product_configuration_id = state.product_configuration_id
+        account.activation_status = state.activation_status
+        PaymentAccountRepository.set_requirements(account, state.requirements)
+        return account
+
+    @staticmethod
+    def set_requirements(account: PaymentAccount, requirements: list[PayoutRequirement]) -> None:
+        account.requirements_json = json.dumps([asdict(item) for item in requirements]) if requirements else None
+
+    @staticmethod
+    def requirements(account: PaymentAccount) -> list[PayoutRequirement]:
+        if not account.requirements_json:
+            return []
+        try:
+            items = json.loads(account.requirements_json)
+        except ValueError:
+            return []
+        return [PayoutRequirement(**item) for item in items if isinstance(item, dict)]

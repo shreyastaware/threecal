@@ -71,12 +71,12 @@ export function BookingForm({
     if (created.status === "pending") startCheckout.mutate(created.id);
   });
 
-  if (booking?.status === "confirmed" && booking.booking_amount === 0) {
+  if (booking?.status === "confirmed") {
     return <section className="booking-form-card"><StatusMessage tone="success"><Check size={15}/> Your appointment is confirmed.</StatusMessage><h3>See you soon, {booking.invitee_name}.</h3><p>A confirmation has been sent to {booking.invitee_email}.</p></section>;
   }
 
   if (booking?.status === "pending") {
-    return <section className="booking-form-card"><div className="booking-form-heading"><span className="kicker kicker-dark">Payment required</span><h3>Hold your time for 10 minutes.</h3><p>Your slot is reserved while payment is completed. <strong className={remaining < 60 ? "timer urgent" : "timer"}>{Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}</strong></p></div>{remaining === 0 ? <><StatusMessage>The payment window expired. Return to the calendar and choose another time.</StatusMessage><button className="back-button" type="button" onClick={onBack}><ArrowLeft size={15}/> Return to calendar</button></> : startCheckout.isPending ? <p className="booking-processing"><LoaderCircle className="spin"/> Preparing secure checkout</p> : checkout ? <ProviderCheckout checkout={checkout}/> : startCheckout.isError ? <><StatusMessage>{getErrorMessage(startCheckout.error)}</StatusMessage><button className="back-button" type="button" onClick={() => startCheckout.mutate(booking.id)}>Try checkout again</button></> : null}</section>;
+    return <section className="booking-form-card"><div className="booking-form-heading"><span className="kicker kicker-dark">Payment required</span><h3>Hold your time for 10 minutes.</h3><p>Your slot is reserved while payment is completed. <strong className={remaining < 60 ? "timer urgent" : "timer"}>{Math.floor(remaining / 60)}:{String(remaining % 60).padStart(2, "0")}</strong></p></div>{remaining === 0 ? <><StatusMessage>The payment window expired. Return to the calendar and choose another time.</StatusMessage><button className="back-button" type="button" onClick={onBack}><ArrowLeft size={15}/> Return to calendar</button></> : startCheckout.isPending ? <p className="booking-processing"><LoaderCircle className="spin"/> Preparing secure checkout</p> : checkout ? <ProviderCheckout checkout={checkout} onConfirmed={() => setBooking({ ...booking, status: "confirmed" })}/> : startCheckout.isError ? <><StatusMessage>{getErrorMessage(startCheckout.error)}</StatusMessage><button className="back-button" type="button" onClick={() => startCheckout.mutate(booking.id)}>Try checkout again</button></> : null}</section>;
   }
 
   return (
