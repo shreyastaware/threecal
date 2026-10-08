@@ -7,10 +7,12 @@ from app.core.config import settings
 from app.core.database import Base
 from app.domains.auth.models import OAuthAccount  # noqa: F401
 from app.domains.availability.models import AvailabilityBreak, AvailabilityException, WorkingHour  # noqa: F401
-from app.domains.billing.models import BillingInvoice, PlatformBilling  # noqa: F401
 from app.domains.bookings.models import Booking  # noqa: F401
+from app.domains.calendars.models import BookingCalendarEvent, CalendarConnection, SelectedCalendar  # noqa: F401
+from app.domains.conferencing.models import BookingMeeting, ConferencingConnection  # noqa: F401
 from app.domains.event_types.models import EventType  # noqa: F401
-from app.domains.payments.models import DoctorPaymentConfig  # noqa: F401
+from app.domains.notifications.models import BookingReminder  # noqa: F401
+from app.domains.payments.models import PaymentAccount  # noqa: F401
 from app.domains.users.models import User  # noqa: F401
 from app.domains.webhooks.models import WebhookEvent  # noqa: F401
 
