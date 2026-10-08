@@ -1,17 +1,23 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, UploadFile, status
+from fastapi import APIRouter, Depends, File, Response, UploadFile, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.errors import AppError
+from app.domains.auth.cookies import clear_auth_cookie, set_auth_cookie
 from app.domains.auth.dependencies import get_current_user
 from app.domains.users.avatar import MAX_AVATAR_BYTES, AvatarValidationError
 from app.domains.users.models import User
 from app.domains.users.repositories import UserRepository
-from app.domains.users.schemas import UserProfileUpdate, UserRead
-from app.domains.users.service import UserAvatarService, UserProfileService
+from app.domains.users.schemas import (
+    AccountDeleteRequest,
+    PasswordChangeRequest,
+    UserProfileUpdate,
+    UserRead,
+)
+from app.domains.users.service import UserAccountService, UserAvatarService, UserProfileService
 from app.domains.users.storage import (
     ObjectStorage,
     ObjectStorageConfigurationError,
@@ -41,6 +47,36 @@ def update_current_user(
         )
     except IntegrityError as exc:
         raise AppError(status.HTTP_409_CONFLICT, "username_taken", "That booking URL is taken.") from exc
+
+
+@router.post("/me/password", response_model=UserRead)
+def change_current_user_password(
+    payload: PasswordChangeRequest,
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    storage: ObjectStorage = Depends(get_object_storage),
+) -> User:
+    user = UserAccountService(db, storage).change_password(
+        current_user,
+        payload.current_password,
+        payload.new_password,
+    )
+    # Other sessions are revoked by the version bump; keep this one signed in.
+    set_auth_cookie(response, user)
+    return user
+
+
+@router.delete("/me", status_code=status.HTTP_204_NO_CONTENT)
+def delete_current_user(
+    payload: AccountDeleteRequest,
+    response: Response,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    storage: ObjectStorage = Depends(get_object_storage),
+) -> None:
+    UserAccountService(db, storage).delete(current_user, payload.password)
+    clear_auth_cookie(response)
 
 
 @router.post("/me/avatar", response_model=UserRead)

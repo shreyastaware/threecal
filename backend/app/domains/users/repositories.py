@@ -1,9 +1,10 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import ColumnElement, Table, delete, inspect, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.core.database import Base
 from app.domains.users.models import User
 
 
@@ -36,3 +37,35 @@ class UserRepository:
             raise
         self.db.refresh(user)
         return user
+
+    def delete_with_dependents(self, user: User) -> None:
+        """Delete the user and every row that depends on it, children first.
+
+        SQLite does not enforce ON DELETE CASCADE unless the foreign_keys pragma is on,
+        so dependents are removed explicitly by walking the mapped foreign keys. This is
+        a no-op duplicate of the database cascade on engines that do enforce it.
+        """
+        existing_tables = set(inspect(self.db.connection()).get_table_names())
+        users_table = User.__table__
+        assert isinstance(users_table, Table)
+        self.db.expunge(user)
+        self._delete_cascade(users_table, users_table.c.id == user.id, existing_tables)
+
+    def _delete_cascade(
+        self,
+        table: Table,
+        condition: ColumnElement[bool],
+        existing_tables: set[str],
+    ) -> None:
+        for child in Base.metadata.sorted_tables:
+            if child is table or child.name not in existing_tables:
+                continue
+            for foreign_key in child.foreign_keys:
+                if foreign_key.column.table is not table:
+                    continue
+                child_condition = foreign_key.parent.in_(select(foreign_key.column).where(condition))
+                if (foreign_key.ondelete or "").upper() == "SET NULL":
+                    self.db.execute(update(child).where(child_condition).values({foreign_key.parent.name: None}))
+                else:
+                    self._delete_cascade(child, child_condition, existing_tables)
+        self.db.execute(delete(table).where(condition))

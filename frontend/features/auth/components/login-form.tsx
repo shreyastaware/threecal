@@ -54,6 +54,9 @@ export function LoginForm() {
         />
         {errors.password && <small>{errors.password.message}</small>}
       </label>
+      <Link className="auth-inline-link" href="/forgot-password">
+        Forgot password?
+      </Link>
       {serverError && <p className="form-error">{serverError}</p>}
       <button className="auth-submit" type="submit" disabled={isSubmitting}>
         {isSubmitting ? <LoaderCircle className="spin" size={18} /> : "Sign in"}

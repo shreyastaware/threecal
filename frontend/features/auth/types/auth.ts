@@ -23,3 +23,17 @@ export type RegisterInput = LoginInput & {
 export type AuthResponse = {
   user: User;
 };
+
+export type ResetPasswordInput = {
+  token: string;
+  new_password: string;
+};
+
+export type ChangePasswordInput = {
+  current_password: string;
+  new_password: string;
+};
+
+export type DeleteAccountInput = {
+  password: string;
+};

@@ -1,9 +1,25 @@
 import uuid
 from datetime import datetime
+from typing import Annotated
 
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator, model_validator
+
+
+# Shared password policy for registration, password reset, and password change.
+NewPassword = Annotated[str, Field(min_length=8, max_length=128)]
+
+# Public booking pages live at /{username}, so a username must never shadow an app route.
+# Keep in sync with frontend/features/scheduling/schemas.ts.
+RESERVED_USERNAMES = frozenset(
+    {
+        "about", "account", "admin", "api", "app", "auth", "billing", "blog", "bookings", "contact",
+        "dashboard", "docs", "forgot-password", "help", "integrations", "login", "logout", "onboarding",
+        "payments", "pricing", "privacy", "public", "register", "reset-password", "settings", "signin",
+        "signup", "static", "support", "terms", "verify-email", "www",
+    }
+)
 
 
 class UserRead(BaseModel):
@@ -31,6 +47,8 @@ class UserProfileUpdate(BaseModel):
     @field_validator("username")
     @classmethod
     def normalize_username(cls, value: str | None) -> str | None:
+        if value and value.lower() in RESERVED_USERNAMES:
+            raise ValueError("That booking URL is reserved. Choose another one.")
         return value.lower() if value else value
 
     @field_validator("timezone")
@@ -52,3 +70,18 @@ class PublicUserRead(BaseModel):
     bio: str | None
     timezone: str
     avatar_url: str | None
+
+
+class PasswordChangeRequest(BaseModel):
+    current_password: str = Field(min_length=1, max_length=128)
+    new_password: NewPassword
+
+    @model_validator(mode="after")
+    def require_new_password(self) -> "PasswordChangeRequest":
+        if self.current_password == self.new_password:
+            raise ValueError("Choose a new password that differs from your current one.")
+        return self
+
+
+class AccountDeleteRequest(BaseModel):
+    password: str = Field(min_length=1, max_length=128)

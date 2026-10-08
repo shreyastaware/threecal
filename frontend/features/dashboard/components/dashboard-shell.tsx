@@ -4,11 +4,13 @@ import {
   CalendarDays,
   ChevronUp,
   Landmark,
+  LayoutGrid,
   LayoutDashboard,
   Link2,
   LoaderCircle,
   LogOut,
   Settings2,
+  UserCog,
   UserRound,
 } from "lucide-react";
 import Link from "next/link";
@@ -21,6 +23,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { EmailVerificationBanner } from "@/features/auth/components/email-verification-banner";
 import { useAuth } from "@/features/auth/hooks/use-auth";
 
 const navigation = [
@@ -29,6 +32,8 @@ const navigation = [
   { href: "/dashboard/bookings", label: "Bookings", icon: CalendarDays },
   { href: "/dashboard/availability", label: "Availability", icon: Settings2 },
   { href: "/dashboard/payments", label: "Payments", icon: Landmark },
+  { href: "/dashboard/integrations", label: "Integrations", icon: LayoutGrid },
+  { href: "/dashboard/settings", label: "Settings", icon: UserCog },
 ];
 
 export function DashboardShell({ children }: { children: React.ReactNode }) {
@@ -108,7 +113,10 @@ export function DashboardShell({ children }: { children: React.ReactNode }) {
           </DropdownMenu>
         </div>
       </aside>
-      <div className="workspace-content">{children}</div>
+      <div className="workspace-content">
+        {!user.is_email_verified && <EmailVerificationBanner email={user.email} />}
+        {children}
+      </div>
     </main>
   );
 }
