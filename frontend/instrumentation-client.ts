@@ -1,4 +1,15 @@
+import * as Sentry from "@sentry/nextjs";
 import posthog from "posthog-js";
+
+import { getSentryOptions, isSentryEnabled } from "@/lib/observability/sentry";
+
+// Sentry error monitoring (inert unless NEXT_PUBLIC_SENTRY_DSN is set).
+if (isSentryEnabled) {
+  Sentry.init(getSentryOptions());
+}
+
+// Navigation tracing for Sentry; a no-op when Sentry is not initialised.
+export const onRouterTransitionStart = Sentry.captureRouterTransitionStart;
 
 const projectToken = process.env.NEXT_PUBLIC_POSTHOG_PROJECT_TOKEN;
 const host = process.env.NEXT_PUBLIC_POSTHOG_HOST;
