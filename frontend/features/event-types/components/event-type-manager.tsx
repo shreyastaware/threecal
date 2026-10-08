@@ -19,7 +19,10 @@ import {
 import { useAuth } from "@/features/auth/hooks/use-auth";
 import { StatusMessage } from "@/features/dashboard/components/status-message";
 import { eventTypesApi, type EventType, type EventTypeInput } from "@/features/event-types/api";
-import { eventTypeSchema, type EventTypeFormValues } from "@/features/event-types/schemas";
+import { BookingRulesFields, noticeToFormValues } from "@/features/event-types/components/booking-rules-fields";
+import { LocationFields } from "@/features/event-types/components/location-fields";
+import { LOCATION_LABELS } from "@/features/event-types/locations";
+import { eventTypeSchema, LOCATION_VALUE_TYPES, NOTICE_UNIT_MINUTES, type EventTypeFormValues } from "@/features/event-types/schemas";
 import { getErrorMessage } from "@/lib/api/client";
 
 const emptyValues: EventTypeFormValues = {
@@ -31,6 +34,14 @@ const emptyValues: EventTypeFormValues = {
   price: 0,
   is_active: true,
   is_default: false,
+  buffer_before_minutes: 0,
+  buffer_after_minutes: 0,
+  minimum_notice_value: 0,
+  minimum_notice_unit: "hours",
+  max_days_in_advance: 60,
+  daily_booking_limit: null,
+  location_type: "none",
+  location_value: "",
 };
 
 function getDurationOption(
@@ -60,6 +71,13 @@ function eventToFormValues(event: EventType): EventTypeFormValues {
     price: event.price_minor / 100,
     is_active: event.is_active,
     is_default: event.is_default,
+    buffer_before_minutes: event.buffer_before_minutes,
+    buffer_after_minutes: event.buffer_after_minutes,
+    ...noticeToFormValues(event.minimum_notice_minutes),
+    max_days_in_advance: event.max_days_in_advance,
+    daily_booking_limit: event.daily_booking_limit,
+    location_type: event.location_type ?? "none",
+    location_value: event.location_value ?? "",
   };
 }
 
@@ -124,6 +142,9 @@ export function EventTypeManager() {
       custom_duration_minutes: customDurationMinutes,
       duration_option: durationOption,
       price,
+      minimum_notice_value: minimumNoticeValue,
+      minimum_notice_unit: minimumNoticeUnit,
+      location_value: locationValue,
       ...eventTypeValues
     } = values;
     const durationMinutes = durationOption === "custom"
@@ -138,6 +159,9 @@ export function EventTypeManager() {
           duration_minutes: durationMinutes,
           price_minor: Math.round(price * 100),
           currency: "INR",
+          minimum_notice_minutes: minimumNoticeValue * NOTICE_UNIT_MINUTES[minimumNoticeUnit],
+          // Only typed-in locations carry a value; integrations generate links per booking.
+          location_value: (LOCATION_VALUE_TYPES as readonly string[]).includes(values.location_type) ? locationValue : null,
         },
       },
       {
@@ -149,6 +173,7 @@ export function EventTypeManager() {
             currency: event.currency,
             is_active: event.is_active,
             is_default: event.is_default,
+            location_type: event.location_type,
           });
         },
       },
@@ -204,7 +229,7 @@ export function EventTypeManager() {
         <div className="event-list">
           {events.data?.map((event) => <article className={!event.is_active ? "event-card inactive" : "event-card"} key={event.id}>
             <div><div className="event-status-row"><span className="event-status">{event.is_active ? "Live" : "Hidden"}</span>{event.is_default && <span className="event-default-status"><Route size={12}/> Default booking</span>}</div><h3>{event.title}</h3><p>{event.description || "No description yet."}</p></div>
-            <div className="event-meta"><strong>{displayPrice(event)}</strong><small>{event.duration_minutes} min · every {event.slot_interval_minutes} min</small><div><button className="quiet-button" type="button" onClick={() => openEditDialog(event.id)}><Edit3 size={14}/> Edit</button><button aria-label={`Delete ${event.title}`} className="quiet-button event-delete-trigger" type="button" onClick={() => openDeleteDialog(event)}><Trash2 size={14}/> Delete</button>{user?.username && event.is_active && <Link className="text-link" href={`/${user.username}/${event.slug}`} target="_blank">Open link</Link>}</div></div>
+            <div className="event-meta"><strong>{displayPrice(event)}</strong><small>{event.duration_minutes} min · every {event.slot_interval_minutes} min{event.location_type && event.location_type !== "none" ? ` · ${LOCATION_LABELS[event.location_type]}` : ""}</small><div><button className="quiet-button" type="button" onClick={() => openEditDialog(event.id)}><Edit3 size={14}/> Edit</button><button aria-label={`Delete ${event.title}`} className="quiet-button event-delete-trigger" type="button" onClick={() => openDeleteDialog(event)}><Trash2 size={14}/> Delete</button>{user?.username && event.is_active && <Link className="text-link" href={`/${user.username}/${event.slug}`} target="_blank">Open link</Link>}</div></div>
           </article>)}
           {!events.isLoading && !events.data?.length && <div className="empty-state"><Plus size={18}/><p>Create your first event type to start accepting bookings.</p></div>}
         </div>
@@ -290,6 +315,8 @@ export function EventTypeManager() {
                     {errors.is_default && <small className="field-error">{errors.is_default.message}</small>}
                   </span>
                 </label>
+                <LocationFields control={control} errors={errors} register={register} />
+                <BookingRulesFields control={control} errors={errors} register={register} />
                 {save.isError && <StatusMessage>{getErrorMessage(save.error)}</StatusMessage>}
                 <div className="form-actions profile-dialog-actions">
                   <Dialog.Close className="profile-dialog-cancel" disabled={save.isPending}>Cancel</Dialog.Close>
