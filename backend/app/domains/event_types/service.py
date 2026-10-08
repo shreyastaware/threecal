@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.errors import AppError
+from app.domains.conferencing.service import ensure_location_available
 from app.domains.event_types.models import EventType
 from app.domains.event_types.repository import EventTypeRepository
 from app.domains.event_types.schemas import EventTypeInput
@@ -17,12 +18,14 @@ STARTER_EVENT_TYPES: tuple[dict[str, object], ...] = (
         "slug": "30min",
         "duration_minutes": 30,
         "slot_interval_minutes": 30,
+        "max_days_in_advance": 60,
     },
     {
         "title": "60-minute call",
         "slug": "60min",
         "duration_minutes": 60,
         "slot_interval_minutes": 60,
+        "max_days_in_advance": 60,
     },
 )
 
@@ -37,6 +40,7 @@ class EventTypeService:
 
     def create(self, user_id: uuid.UUID, payload: EventTypeInput) -> EventType:
         self._validate_default(payload)
+        ensure_location_available(self.db, user_id, payload.location_type)
         event_type = EventType(
             user_id=user_id,
             slug=self._next_duration_slug(user_id, payload.duration_minutes),
@@ -62,6 +66,9 @@ class EventTypeService:
             )
 
         self._validate_default(payload)
+        # Only a changed location is checked, so other edits still save if an integration was disconnected.
+        if payload.location_type != event_type.location_type:
+            ensure_location_available(self.db, user_id, payload.location_type)
         duration_changed = event_type.duration_minutes != payload.duration_minutes
         if payload.is_default:
             self.repository.clear_default(

@@ -56,6 +56,42 @@ class ExceptionInput(BaseModel):
     note: str | None = Field(default=None, max_length=255)
 
 
+class DateOverrideInput(BaseModel):
+    """A one-day override of the weekly schedule.
+
+    ``is_available=False`` blocks the whole day. ``is_available=True`` replaces the
+    weekly hours for that date with a single custom range; weekly breaks do not apply.
+    """
+
+    is_available: bool = False
+    start_time: time | None = None
+    end_time: time | None = None
+    note: str | None = Field(default=None, max_length=255)
+
+    @model_validator(mode="after")
+    def valid_hours(self) -> "DateOverrideInput":
+        if not self.is_available:
+            # An unavailable day never carries hours.
+            self.start_time = None
+            self.end_time = None
+            return self
+        if self.start_time is None or self.end_time is None:
+            raise ValueError("Custom hours need a start and end time")
+        if self.start_time >= self.end_time:
+            raise ValueError("End must be after start")
+        return self
+
+
+class DateOverrideRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    exception_date: date
+    is_available: bool
+    start_time: time | None
+    end_time: time | None
+    note: str | None
+
+
 class SlotRead(BaseModel):
     starts_at: datetime
     ends_at: datetime

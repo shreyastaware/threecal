@@ -4,13 +4,23 @@ const timeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use a valid ti
 const MAX_PROFILE_IMAGE_BYTES = 5 * 1024 * 1024;
 const PROFILE_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
+// Public booking pages live at /{username}; these would shadow app routes.
+// Keep in sync with RESERVED_USERNAMES in backend/app/domains/users/schemas.py.
+export const RESERVED_USERNAMES = new Set([
+  "about", "account", "admin", "api", "app", "auth", "billing", "blog", "bookings", "contact",
+  "dashboard", "docs", "forgot-password", "help", "integrations", "login", "logout", "onboarding",
+  "payments", "pricing", "privacy", "public", "register", "reset-password", "settings", "signin",
+  "signup", "static", "support", "terms", "verify-email", "www",
+]);
+
 export const profileSchema = z.object({
   full_name: z.string().trim().min(2, "Name must be at least 2 characters").max(120),
   username: z
     .string()
     .trim()
     .toLowerCase()
-    .refine((value) => value === "" || /^[a-z0-9_-]{3,50}$/.test(value), "Use 3-50 lowercase letters, numbers, hyphens, or underscores"),
+    .refine((value) => value === "" || /^[a-z0-9_-]{3,50}$/.test(value), "Use 3-50 lowercase letters, numbers, hyphens, or underscores")
+    .refine((value) => !RESERVED_USERNAMES.has(value), "That booking URL is reserved. Choose another one."),
   timezone: z.string().min(1, "Choose a timezone"),
   bio: z.string().max(1000, "Bio must be 1000 characters or fewer"),
   avatar_url: z.string().max(2048, "Image URL is too long"),
@@ -58,5 +68,20 @@ export const scheduleSchema = z.array(workingHourSchema).superRefine((hours, con
     }
   }
 });
+
+export const dateOverrideSchema = z
+  .object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Choose a date"),
+    mode: z.enum(["unavailable", "custom"]),
+    start_time: timeSchema,
+    end_time: timeSchema,
+    note: z.string().trim().max(255, "Note must be 255 characters or fewer"),
+  })
+  .refine((value) => value.mode === "unavailable" || value.start_time < value.end_time, {
+    message: "End time must be after start time",
+    path: ["end_time"],
+  });
+
+export type DateOverrideFormValues = z.infer<typeof dateOverrideSchema>;
 
 export type ProfileFormValues = z.infer<typeof profileSchema>;

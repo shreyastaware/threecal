@@ -1,5 +1,14 @@
 import { apiRequest } from "@/lib/api/client";
 
+export type LocationType =
+  | "none"
+  | "in_person"
+  | "phone"
+  | "custom_link"
+  | "google_meet"
+  | "zoom"
+  | "microsoft_teams";
+
 export type EventType = {
   id: string;
   title: string;
@@ -11,6 +20,16 @@ export type EventType = {
   currency: string;
   is_active: boolean;
   is_default: boolean;
+  buffer_before_minutes: number;
+  buffer_after_minutes: number;
+  minimum_notice_minutes: number;
+  /** Booking window in days; null means unlimited. */
+  max_days_in_advance: number | null;
+  /** Max bookings of this event type per day; null means unlimited. */
+  daily_booking_limit: number | null;
+  location_type: LocationType;
+  /** Address (in_person), phone number (phone) or meeting URL (custom_link); null otherwise. */
+  location_value: string | null;
 };
 
 export type EventTypeInput = Omit<EventType, "id" | "slug">;

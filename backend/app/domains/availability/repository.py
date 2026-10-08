@@ -1,10 +1,11 @@
 import uuid
+from datetime import date
 
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from app.domains.availability.models import AvailabilityBreak, AvailabilityException, WorkingHour
-from app.domains.availability.schemas import ScheduleReplace
+from app.domains.availability.schemas import DateOverrideInput, ScheduleReplace
 
 
 class AvailabilityRepository:
@@ -34,3 +35,37 @@ class AvailabilityRepository:
 
     def list_exceptions(self, user_id: uuid.UUID) -> list[AvailabilityException]:
         return list(self.db.scalars(select(AvailabilityException).where(AvailabilityException.user_id == user_id)))
+
+    def list_exceptions_between(self, user_id: uuid.UUID, start: date, end: date) -> list[AvailabilityException]:
+        return list(
+            self.db.scalars(
+                select(AvailabilityException)
+                .where(
+                    AvailabilityException.user_id == user_id,
+                    AvailabilityException.exception_date >= start,
+                    AvailabilityException.exception_date <= end,
+                )
+                .order_by(AvailabilityException.exception_date)
+            )
+        )
+
+    def get_exception(self, user_id: uuid.UUID, exception_date: date) -> AvailabilityException | None:
+        return self.db.scalar(
+            select(AvailabilityException).where(
+                AvailabilityException.user_id == user_id,
+                AvailabilityException.exception_date == exception_date,
+            )
+        )
+
+    def upsert_exception(self, user_id: uuid.UUID, exception_date: date, payload: DateOverrideInput) -> AvailabilityException:
+        # One override per date: setting a date again replaces the previous override.
+        row = self.get_exception(user_id, exception_date)
+        if row is None:
+            row = AvailabilityException(user_id=user_id, exception_date=exception_date)
+            self.db.add(row)
+        for key, value in payload.model_dump().items():
+            setattr(row, key, value)
+        return row
+
+    def delete_exception(self, row: AvailabilityException) -> None:
+        self.db.delete(row)
